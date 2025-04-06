@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Project Deletion Successful{% endblock %}
+
+{% block content %}
+    <h1>Project Deleted</h1>
+    <h3>Project deleted successfully</h3>
+
+    <br>
+    <a href="{% url "controller:process" %}?category=project&action=index">Go back to project listing</a>
+{% endblock %}

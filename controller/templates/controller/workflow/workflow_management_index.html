@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Workflows Management Page{% endblock %}
+
+
+{% block content %}
+    <h1>Manage project workflows</h1>
+    <h3>Project: {{ obj_project.name }}</h3>
+
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=workflow&action=create&pid={{ obj_project.id }}">Create a workflow</a>
+        </li>
+    </ul>
+
+    <br>
+
+    <h3>Existing workflows</h3>
+    {% for w in list_workflows %}
+          <ul class="list-group list-group-horizontal-sm">
+              <li class="list-group-item">
+                  {{ w.name }}
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=workflow&action=view&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      View
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=workflow&action=edit&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      Edit
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=workflow&action=delete&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      Delete
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=run&action=index&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      Manage Runs
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=simulated_run&action=index&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      Manage Simulated Runs
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=pipelined_simulated_run&action=index&pid={{ obj_project.id }}&wid={{ w.id }}">
+                      Manage Pipelined Simulated Runs
+                  </a>
+              </li>
+{#              <li class="list-group-item">#}
+{#                  <a href="{% url "controller:process" %}?category=workflow&action=publish&pid={{ obj_project.id }}&wid={{ w.id }}">#}
+{#                      Publish#}
+{#                  </a>#}
+{#              </li>#}
+          </ul>
+    {% endfor %}
+
+    <br>
+
+    <a href="{% url "controller:process" %}?category=project&action=index">Go back to project listing</a>
+{% endblock %}

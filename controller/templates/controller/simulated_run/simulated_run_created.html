@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Simulated Run Creation Successful{% endblock %}
+
+{% block content %}
+    <h1>Simulated Run Created</h1>
+    <h3>Simulated Run: {{ simulated_run_name }} created successfully</h3>
+
+    <br>
+    <b>Message: </b>{{ message }}
+    <br>
+
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=simulated_run&action=index&pid={{ project_id }}&wid={{ workflow_id }}">
+                Go back to simulated runs listing
+            </a>
+        </li>
+    </ul>
+{% endblock %}

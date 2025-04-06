@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Pipelined Simulated Run Creation Page{% endblock %}
+
+{% block content %}
+    <h1>Create Pipelined Simulated Run</h1>
+    <form action="{% url "controller:process" %}?category=pipelined_simulated_run&action=create&pid={{ project_id }}&wid={{ workflow_id }}&rid={{ pipelined_simulated_run_id }}" method="post">
+    {% csrf_token %}
+        <h3>Supply simulation parameters for each job below:</h3>
+        {% for job_id,node_bundle in mapping_job_id_vs_node_bundle.items %}
+              <ul class="list-group list-group-horizontal-sm">
+                  <li class="list-group-item">
+                      Job Id: {{ job_id }} <br> <br> <br>
+                      {% for key,value in node_bundle.items %}
+                          {% if key == 'node' %}
+                              {{ value.name }}
+                              <br><br>
+                          {% elif key == 'input_nodes' %}
+                              Names of inputs: <br>
+                              {% for n in value %}
+                                  {{ n.name }} <br>
+                              {% endfor %}
+                              <br><br>
+                          {% elif key == 'output_nodes' %}
+                              Names of outputs: <br>
+                              {% for n in value %}
+                                  {{ n.name }} <br>
+                              {% endfor %}
+                              <br><br>
+                          {% endif %}
+                      {% endfor %}
+                  </li>
+                  <li class="list-group-item">
+                      <label for="min_loop_times_job_{{ job_id }}">Minimum loop times: </label>
+                      <input type="number" id="min_loop_times_job_{{ job_id }}" name="min_loop_times_job_{{ job_id }}"><br>
+                      <label for="max_loop_times_job_{{ job_id }}">Maximum loop times: </label>
+                      <input type="number" id="max_loop_times_job_{{ job_id }}" name="max_loop_times_job_{{ job_id }}"><br>
+                      <br>
+
+                      <label for="min_workers_per_burst_job_{{ job_id }}">Minimum workers per burst: </label>
+                      <input type="number" id="min_workers_per_burst_job_{{ job_id }}" name="min_workers_per_burst_job_{{ job_id }}"><br>
+                      <label for="max_workers_per_burst_job_{{ job_id }}">Maximum workers per burst: </label>
+                      <input type="number" id="max_workers_per_burst_job_{{ job_id }}" name="max_workers_per_burst_job_{{ job_id }}"><br>
+                      <br>
+
+                      <label for="min_time_gap_in_loop_points_job_{{ job_id }}">Minimum time gap in loop points: </label>
+                      <input type="number" id="min_time_gap_in_loop_points_job_{{ job_id }}" name="min_time_gap_in_loop_points_job_{{ job_id }}"><br>
+                      <label for="max_time_gap_in_loop_points_job_{{ job_id }}">Maximum time gap in loop points: </label>
+                      <input type="number" id="max_time_gap_in_loop_points_job_{{ job_id }}" name="max_time_gap_in_loop_points_job_{{ job_id }}"><br>
+                      <br>
+
+                      <label for="min_worker_annotation_time_job_{{ job_id }}">Minimum worker annotation time: </label>
+                      <input type="number" id="min_worker_annotation_time_job_{{ job_id }}" name="min_worker_annotation_time_job_{{ job_id }}"><br>
+                      <label for="max_worker_annotation_time_job_{{ job_id }}">Maximum worker annotation time: </label>
+                      <input type="number" id="max_worker_annotation_time_job_{{ job_id }}" name="max_worker_annotation_time_job_{{ job_id }}"><br>
+                      <br>
+
+                      <label for="min_worker_accuracy_job_{{ job_id }}">Minimum worker accuracy: </label>
+                      <input type="number" step="0.01" id="min_worker_accuracy_job_{{ job_id }}" name="min_worker_accuracy_job_{{ job_id }}"><br>
+                      <label for="max_worker_accuracy_job_{{ job_id }}">Maximum worker accuracy: </label>
+                      <input type="number" step="0.01" id="max_worker_accuracy_job_{{ job_id }}" name="max_worker_accuracy_job_{{ job_id }}"><br>
+                      <br>
+                  </li>
+              </ul>
+        {% endfor %}
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

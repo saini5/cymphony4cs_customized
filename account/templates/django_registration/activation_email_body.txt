@@ -1,0 +1,12 @@
+Hi {{user.first_name}},
+
+An account has been created for you at Cymphony with the username: {{user.username}}. Click this link to activate your account. This link will be valid for {{expiration_days}} days.
+
+{{ site }}/activate/{{ activation_key }}
+
+If your e-mail does not show links, use the cut and paste functions to place the line in your browser's URL address or location.
+
+Thank you,
+Cymphony Team
+
+NOTE: This message has been automatically generated; please do not reply to this message.

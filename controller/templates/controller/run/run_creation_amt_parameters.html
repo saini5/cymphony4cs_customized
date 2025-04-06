@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Run Creation Page{% endblock %}
+
+{% block content %}
+    <h1>Create Run</h1>
+    <form action="{% url "controller:process" %}?category=run&action=create&pid={{ project_id }}&wid={{ workflow_id }}&rid={{ run_id }}" method="post">
+    {% csrf_token %}
+        <h3>Supply amt parameters for the run</h3>
+        <ul class="list-group list-group-vertical-sm">
+            <!--li class="list-group-item">
+                <label for="user_name">IAM User Name: </label>
+                <input id="iam_user_name" name="iam_user_name"><br>
+            </li-->
+            <li class="list-group-item">
+                <label for="access_key_id">Access Key Id: </label>
+                <input id="access_key_id" name="access_key_id"><br>
+            </li>
+            <li class="list-group-item">
+                <label for="secret_access_key">Secret Access key: </label>
+                <input id="secret_access_key" name="secret_access_key"><br>
+            </li>
+        </ul>
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Project Creation Page{% endblock %}
+
+{% block content %}
+    <h1>Create Project</h1>
+    <form action="{% url "controller:process" %}?category=project&action=create" method="post">
+    {% csrf_token %}
+        <label for="pname">Name: </label><br>
+        <input type="text" id="pname" name="pname" value="Project1">
+        <br>
+        <label for="pdesc">Description: </label><br>
+        <input type="text" id="pdesc" name="pdesc" value="Enter description here">
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

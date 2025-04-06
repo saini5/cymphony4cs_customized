@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Create an account{% endblock %}
+
+{% block content %}
+    <div class = "jumbotron bg-transparent">
+        <div class="container w-50 border bg-transparent p-5">
+            <h3>Activation Complete</h3>
+            <p class="py-2">
+                <br>
+                Your account has been activated. <br> <br>
+                Now you can <a href="{% url "account:login" %}">log in</a>.
+            </p>
+        </div>
+    </div>
+{% endblock %}

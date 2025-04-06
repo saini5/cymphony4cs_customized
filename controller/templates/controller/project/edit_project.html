@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Project Page{% endblock %}
+
+{% block content %}
+    <h1>Edit Project</h1>
+    <form action="{% url "controller:process" %}?category=project&action=edit&pid={{ obj_project.id }}" method="post">
+    {% csrf_token %}
+        <label for="pname">Name: </label><br>
+        <input type="text" id="pname" name="pname" value="{{ obj_project.name }}">
+        <br>
+        <label for="pdesc">Description: </label><br>
+        <input type="text" id="pdesc" name="pdesc" value= "{{ obj_project.description }}">
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

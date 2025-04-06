@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Create an account{% endblock %}
+
+{% block content %}
+    <div class = "jumbotron bg-transparent">
+        <div class="container w-50 border bg-transparent p-5">
+            <h3>Activation Failed</h3>
+            <p class="py-2">
+                {% if activation_error.code == "already_activated" %}
+                    {{ activation_error.message }}
+                {% elif activation_error.code == "bad_username" %}
+                    {{ activation_error.message }}
+                {% elif activation_error.code == "expired" %}
+                    This activation key has expired.
+                {% elif activation_error.code == "invalid_key" %}
+                    {{ activation_error.message }}
+                {% else %}
+                    Error: {{ activation_error }}
+                {% endif %}
+                <br><br>
+                Go back to <a href="{% url "account:login" %}">login</a> page?
+            </p>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}View Simulated Run Statistics Page{% endblock %}
+
+{% block content %}
+    <h1>View Simulated Run Statistics</h1>
+
+    <h3>Simulated run basic information</h3>
+    <ul class="list-group" style="list-style-type: none">
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Name</li>
+                <li class="list-group-item">{{ obj_simulated_run.name }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Description</li>
+                <li class="list-group-item">{{ obj_simulated_run.description }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Creation date</li>
+                <li class="list-group-item">{{ obj_simulated_run.date_creation }}</li>
+            </ul>
+        </li>
+    </ul>
+    <br>
+
+    <br>
+    <h3>Simulation statistics</h3>
+    {% for obj_job, statistics_job in statistics.items %}
+        <br>
+        <h4>Job: {{ obj_job.id }}</h4>
+        {% for statistics_job_key, statistics_job_value in statistics_job.items %}
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">{{ statistics_job_key }}</li>
+                <li class="list-group-item">{{ statistics_job_value }}</li>
+            </ul>
+        {% endfor %}
+        <br>
+    {% endfor %}
+
+    <br>
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=simulated_run&action=index&pid={{ obj_simulated_run.project_id }}&wid={{ obj_simulated_run.workflow_id }}">
+                Go back to simulated runs listing
+            </a>
+        </li>
+    </ul>
+{% endblock %}

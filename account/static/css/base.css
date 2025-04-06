@@ -1,0 +1,15 @@
+@import url(http://fonts.googleapis.com/css?family=Muli);
+
+selected {
+    color:#1b6d32;
+    font-weight:bold;
+}
+
+/* forms */
+.errorlist {
+    color:#cc0033;
+    padding-left:10px;
+}
+.helptext {
+}
+

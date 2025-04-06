@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Project Edit Successful{% endblock %}
+
+{% block content %}
+    <h1>Project Edited</h1>
+    <h3>Project: {{ obj_project.name }} edited successfully</h3>
+
+    <br>
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=project&action=index">Go back to project listing</a>
+        </li>
+    </ul>
+{% endblock %}

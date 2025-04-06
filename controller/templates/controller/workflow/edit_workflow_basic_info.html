@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Workflow Page{% endblock %}
+
+{% block content %}
+    <h1>Edit Workflow</h1>
+    <form action="{% url "controller:process" %}?category=workflow&action=edit_workflow_basic_info&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}" method="post">
+    {% csrf_token %}
+        <label for="wname">Name: </label><br>
+        <input type="text" id="wname" name="wname" value="{{ obj_workflow.name }}">
+        <br>
+        <label for="wdesc">Description: </label><br>
+        <input type="text" id="wdesc" name="wdesc" value= "{{ obj_workflow.description }}">
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

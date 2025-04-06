@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Run Creation Page{% endblock %}
+
+{% block content %}
+    <h1>Create Run</h1>
+    <form action="{% url "controller:process" %}?category=run&action=create&pid={{ project_id }}&wid={{ workflow_id }}" method="post">
+    {% csrf_token %}
+        <label for="rname">Name: </label><br>
+        <input type="text" id="rname" name="rname" placeholder="Enter run name here">
+        <br>
+        <label for="rdesc">Description: </label><br>
+        <input type="text" id="rdesc" name="rdesc" placeholder="Enter description here">
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

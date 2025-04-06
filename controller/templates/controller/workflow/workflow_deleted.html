@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Workflow Deletion Successful{% endblock %}
+
+{% block content %}
+    <h1>Workflow Deleted</h1>
+    <h3>Workflow deleted successfully</h3>
+
+    <br>
+    <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ project_id }}">Go back to workflow listing</a>
+{% endblock %}

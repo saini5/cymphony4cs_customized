@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+    <h1>Dashboard</h1>
+    <p>Welcome to your dashboard.</p>
+    <ul class="list-group list-group-vertical-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=project&action=index"> Work as requester: Manage projects</a>
+        </li>
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=job_3a_kn&action=index"> Work as worker: Work on jobs</a>
+        </li>
+    </ul>
+{% endblock %}

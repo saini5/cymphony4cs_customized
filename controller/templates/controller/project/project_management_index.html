@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Projects Dashboard{% endblock %}
+
+{% block content %}
+    <h1>Projects Dashboard</h1>
+    <ul class="list-group list-group-vertical-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=project&action=create">Create a project</a>
+        </li>
+    </ul>
+    <br>
+    <h3>Existing projects</h3>
+    {% for p in user_projects_list %}
+        <ul class="list-group list-group-horizontal-sm">
+            <li class="list-group-item">
+                {{ p.name }}
+            </li>
+            <li class="list-group-item">
+                <a href="{% url "controller:process" %}?category=project&action=view&pid={{ p.id }}">
+                    View
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{% url "controller:process" %}?category=project&action=edit&pid={{ p.id }}">
+                    Edit
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{% url "controller:process" %}?category=project&action=delete&pid={{ p.id }}">
+                    Delete
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ p.id }}">
+                    Manage workflows
+                </a>
+            </li>
+        </ul>
+    {% endfor %}
+    <br>
+    <a href="{% url "account:dashboard" %}">Go back to cymphony home</a>
+{% endblock %}

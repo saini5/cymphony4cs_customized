@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Runs Management Page{% endblock %}
+
+{% block content %}
+    <h1>Manage workflow runs</h1>
+    <h3>Workflow: {{ obj_workflow.name }}</h3>
+
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=run&action=create&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}">
+                Create a run
+            </a>
+        </li>
+    </ul>
+
+    <br>
+
+    <h3>Existing runs</h3>
+    {% for r in list_runs %}
+          <ul class="list-group list-group-horizontal-sm">
+              <li class="list-group-item">
+                  {{ r.name }}
+              </li>
+              <li class="list-group-item">
+                  <a href="#">
+                      Abort
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=run&action=view&pid={{ r.project_id }}&wid={{ r.workflow_id }}&rid={{ r.id }}">
+                      View
+                  </a>
+              </li>
+              <li class="list-group-item">
+                  <a href="#">
+                      Delete
+                  </a>
+              </li>
+          </ul>
+    {% endfor %}
+
+    <br>
+
+    <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ obj_workflow.project_id }}">
+        Go back to workflow listing
+    </a>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Workflow Page{% endblock %}
+
+{% block content %}
+    <h1>Upload files</h1>
+
+    </form>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="fname">
+        <button type="submit">Upload</button>
+    </form>
+
+    <br>
+    <a href="{% url "controller:process" %}?category=workflow&action=edit&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}">
+        Go back to edit workflow
+    </a>
+{% endblock %}

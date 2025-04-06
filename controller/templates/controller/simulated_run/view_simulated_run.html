@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}View Simulated Run Page{% endblock %}
+
+{% block content %}
+    <h1>View Simulated Run</h1>
+
+    <h3>Simulated run basic information</h3>
+    <ul class="list-group" style="list-style-type: none">
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Name</li>
+                <li class="list-group-item">{{ simulated_run_name }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Description</li>
+                <li class="list-group-item">{{ simulated_run_description }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Creation date</li>
+                <li class="list-group-item">{{ simulated_run_date_creation }}</li>
+            </ul>
+        </li>
+    </ul>
+    <br>
+
+    <br>
+
+    <h3>Downloadable files</h3>
+    {% for f in list_file_names %}
+          <ul class="list-group list-group-horizontal-sm">
+              <li class="list-group-item">
+                  {{ f }}
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=simulated_run&action=download_file&pid={{ project_id }}&wid={{ workflow_id }}&rid={{ simulated_run_id }}&fname={{ f }}">
+                      Download
+                  </a>
+              </li>
+          </ul>
+    {% endfor %}
+
+    <br>
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=simulated_run&action=index&pid={{ project_id }}&wid={{ workflow_id }}">
+                Go back to simulated runs listing
+            </a>
+        </li>
+    </ul>
+{% endblock %}

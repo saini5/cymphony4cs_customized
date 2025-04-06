@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Logged out{% endblock %}
+
+{% block content %}
+    <div class = "jumbotron bg-transparent">
+        <div class="container w-50 border bg-transparent p-5">
+            <h3>Logged Out</h3>
+            <p class="py-2">
+                You have been successfully logged out. <br>
+                You can <a href="{% url "account:login" %}">login</a> again.
+            </p>
+        </div>
+    </div>
+{% endblock %}

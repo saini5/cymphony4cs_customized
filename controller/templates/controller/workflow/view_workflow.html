@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}View Workflow Page{% endblock %}
+
+{% block content %}
+    <h1>View Workflow</h1>
+
+    <h3>Workflow basic information</h3>
+    <ul class="list-group" style="list-style-type: none">
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Name</li>
+                <li class="list-group-item">{{ obj_workflow.name }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Description</li>
+                <li class="list-group-item">{{ obj_workflow.description }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Creation date</li>
+                <li class="list-group-item">{{ obj_workflow.date_creation }}</li>
+            </ul>
+        </li>
+    </ul>
+    <br>
+
+    <h3> Workflow files </h3>
+    <ul class="list-group list-group-vertical-sm" style="list-style-type: none">
+        {% for f in list_files %}
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">
+                    {{ f.file_path_str }}
+                </li>
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <br>
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ obj_workflow.project_id }}">Go back to workflow listing</a>
+        </li>
+    </ul>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Workflow File Deletion Successful{% endblock %}
+
+{% block content %}
+    <h1>Workflow File Deleted</h1>
+    <h3>File deleted successfully</h3>
+
+    <br>
+    <ul class="list-group list-group-horizontal-sm">
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=workflow&action=edit&pid={{ project_id }}&wid={{ workflow_id }}">
+                Go back to edit workflow
+            </a>
+        </li>
+        <li class="list-group-item">
+            <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ project_id }}">
+                Go back to workflow listing
+            </a>
+        </li>
+    </ul>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Simulated Run Creation Page{% endblock %}
+
+{% block content %}
+    <h1>Create Simulated Run</h1>
+    <form action="{% url "controller:process" %}?category=simulated_run&action=create&pid={{ project_id }}&wid={{ workflow_id }}" method="post">
+    {% csrf_token %}
+        <label for="s_r_name">Name: </label><br>
+        <input type="text" id="s_r_name" name="s_r_name" placeholder="Enter simulated run name here">
+        <br>
+        <label for="s_r_desc">Description: </label><br>
+        <input type="text" id="s_r_desc" name="s_r_desc" placeholder="Enter description here">
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

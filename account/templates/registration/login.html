@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+    <div class = "jumbotron bg-transparent">
+        <div class="container w-50 border bg-transparent p-5">
+            <h3>Log In</h3>
+            <p class="py-2">
+                <table class="table table-borderless ">
+                    <form method="post">
+                        {% csrf_token %}
+{#                        {{ form.as_table }}#}
+                        {{ form.non_field_errors }}
+                        <tr>
+                            <th><label for="{{ form.username.id_for_label }}">Username</label></th>
+                            <td>{{ form.username }}
+                                {% if form.username.errors %}
+                                    <br>{{ form.username.errors }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="{{ form.password.id_for_label }}">Password</label></th>
+                            <td>{{ form.password }}
+                                {% if form.password.errors %}
+                                    <br>{{ form.password.errors }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <input type="hidden" name="next" value="{{ next }}" />
+                        <tr>
+                            <td><a href="{% url "account:password_reset"%}">Forgot Password?</a></td>
+                            <td><input type="submit" value="Log In" class="btn btn-primary"></td>
+                        </tr>
+                    </form>
+                    <tr><td>No account? <a href="{% url "account:django_registration_register"%}">Create one.</a></td><td></td></tr>
+                </table>
+            </p>
+        </div>
+    </div>
+{% endblock %}

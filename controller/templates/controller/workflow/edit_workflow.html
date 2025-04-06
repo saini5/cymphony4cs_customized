@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Workflow Page{% endblock %}
+
+{% block content %}
+    <h1>Edit Workflow</h1>
+
+    <h3>Workflow basic information</h3>
+    Name: {{ obj_workflow.name }} <br>
+    Description: {{ obj_workflow.description }} <br>
+    <a href="{% url "controller:process" %}?category=workflow&action=edit_workflow_basic_info&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}">
+        Edit basic information
+    </a>
+
+    <h3> Add workflow files </h3>
+    <a href="{% url "controller:process" %}?category=workflow&action=edit_workflow_upload_files&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}">
+        Add files
+    </a>
+
+    <h3> Workflow files </h3>
+    <ul class="list-group list-group-vertical-sm">
+        {% for f in list_files %}
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">
+                    {{ f.file_path_str }}
+                </li>
+                <li class="list-group-item">
+                    View
+                </li>
+                <li class="list-group-item">
+                    Edit
+                </li>
+                <li class="list-group-item">
+                    <a href="{% url "controller:process" %}?category=workflow&action=edit_workflow_delete_file&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}&fid={{ f.id }}&ftype={{ f.type }}">
+                        Delete
+                    </a>
+                </li>
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <br>
+    <a href="{% url "controller:process" %}?category=workflow&action=index&pid={{ obj_workflow.project_id }}">
+        Go back to workflow listing
+    </a>
+
+{#    <ul class="list-group list-group-vertical-sm">#}
+{#        {% for f in list_files %}#}
+{#            <li class="list-group-item">{{ f }}</li>#}
+{#        {% endfor %}#}
+{#    </ul>#}
+{#    <a href="{% url "controller:process" %}?category=workflow&action=edit_workflow_files&pid={{ obj_workflow.project_id }}&wid={{ obj_workflow.id }}">#}
+{#        Edit workflow files#}
+{#    </a>#}
+{% endblock %}

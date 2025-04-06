@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs Dashboard{% endblock %}
+
+{% block content %}
+    <h1>Jobs Dashboard</h1>
+    <br>
+
+    <h3>Available human 3a_kn jobs</h3>
+    {% for j in list_3a_kn_jobs %}
+          <ul class="list-group list-group-horizontal-sm">
+              <li class="list-group-item">
+                  Requester: {{ j.user_id }}
+              </li>
+              <li class="list-group-item">
+                  Project: {{ j.project_id }}
+              </li>
+              <li class="list-group-item">
+                  Workflow: {{ j.workflow_id }}
+              </li>
+              <li class="list-group-item">
+                  Run: {{ j.run_id }}
+              </li>
+              <li class="list-group-item">
+                  Job: {{ j.id }}
+              </li>
+              <li class="list-group-item">
+                  <a href="{% url "controller:process" %}?category=job_3a_kn&action=work&uid={{ j.user_id }}&pid={{ j.project_id }}&wid={{ j.workflow_id }}&rid={{ j.run_id }}&jid={{ j.id }}">
+                      Work on this job
+                  </a>
+              </li>
+          </ul>
+    {% endfor %}
+    <br>
+    <a href="{% url "account:dashboard" %}">Go back to cymphony home</a>
+{% endblock %}

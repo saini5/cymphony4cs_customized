@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Project Creation Page{% endblock %}
+
+{% block content %}
+    <h1>View Project</h1>
+
+    <ul class="list-group" style="list-style-type: none">
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Name</li>
+                <li class="list-group-item">{{ obj_project.name }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Description</li>
+                <li class="list-group-item">{{ obj_project.description }}</li>
+            </ul>
+        </li>
+        <li>
+            <ul class="list-group list-group-horizontal-sm">
+                <li class="list-group-item">Creation date</li>
+                <li class="list-group-item">{{ obj_project.date_creation }}</li>
+            </ul>
+        </li>
+    </ul>
+    <br>
+
+    <a href="{% url "controller:process" %}?category=project&action=index">Go back to project listing</a>
+{% endblock %}

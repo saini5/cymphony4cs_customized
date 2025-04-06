@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Signup{% endblock %}
+
+{% block content %}
+    <div class = "jumbotron bg-transparent">
+        <div class="container w-50 border bg-transparent p-5">
+            <h3>Sign Up</h3>
+            <p class="py-2">
+                <table class="table table-borderless">
+                    <form method="post">
+                        {% csrf_token %}
+{#                        {{ form.as_table }}#}
+                        {{ form.non_field_errors }}
+                        <tr>
+                            <th><label for="{{ form.first_name.id_for_label }}">First Name</label></th>
+                            <td>{{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <br>{{ form.first_name.errors }}
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label for="{{ form.last_name.id_for_label }}">Last Name</label></th>
+                            <td>{{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <br> {{ form.last_name.errors }}
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label for="{{ form.email.id_for_label }}">Email*</label></th>
+                            <td>{{ form.email }}
+                                {% if form.email.errors %}
+                                    <br> {{ form.email.errors }}
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label for="{{ form.username.id_for_label }}">Username*</label></th>
+                            <td>{{ form.username }}
+                                {% if form.username.errors %}
+                                    <br> {{ form.username.errors }}
+                                {% endif %}
+                                <br> 150 characters or fewer. Letters, digits and @/./+/-/_ only.
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label for="{{ form.password1.id_for_label }}">Password*</label></th>
+                            <td>{{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <br> {{ form.password1.errors }}
+                                {% endif %}
+                                <br> {{ form.password1.help_text }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label for="{{ form.password2.id_for_label }}">Password confirmation*</label></th>
+                            <td>{{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <br> {{ form.password2.errors }}
+                                {% endif %}
+                                <br>{{ form.password2.help_text }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Fields in asterisk are required.</td>
+                            <td><input type="submit" value="Sign Up" class="btn btn-primary"></td>
+                        </tr>
+                    </form>
+                </table>
+            </p>
+        </div>
+    </div>
+{% endblock %}
