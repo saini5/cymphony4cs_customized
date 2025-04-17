@@ -1454,42 +1454,25 @@ def sample_table(source_table_name: str, sample_size: int, output_table_name: st
         cursor.close()
 
 
-def execute_queries(queries: str):
+def materialize_query_as_table(output_table: str, query: str):
     """
-    Execute the specified queries.
-    Please note that there is a big security flaw if these queries are executed without analyzing,
+    Execute the specified query.
+    Please note that there is a big security flaw if this query is executed without analyzing,
     since the requester can issue any query, and we are just executing on their behalf as is.
-    Warning: Currently, we are executing queries as is without analyzing them. This operator needs to be improved.
+    Warning: Currently, we are executing query as is without analyzing them. This operator needs to be improved.
     """
     cursor = connection.cursor()
     try:
         # print('going to execute: ')
-        # print(queries)
+        # print(query)
         # print('---------')
-        cursor.execute(queries,[])
+        cursor.execute(
+            "CREATE TABLE " + output_table + " AS " +
+            query,[])
         return
     except ValueError as err:
         print(err.args)
-        raise ValueError('Data access exception in execute queries')
-    finally:
-        cursor.close()
-
-
-def copy_tables_to_tables(mapping_src_table_vs_destination_table: dict):
-    """Create table from existing table"""
-    cursor = connection.cursor()
-    try:
-        for src_table, dest_table in mapping_src_table_vs_destination_table.items():
-            cursor.execute(
-                "CREATE TABLE " +
-                dest_table +
-                " AS TABLE " +
-                src_table, []
-            )
-        return
-    except ValueError as err:
-        print(err.args)
-        raise ValueError('Data access exception in copy tables to tables')
+        raise ValueError('Data access exception in materialize_query_as_table')
     finally:
         cursor.close()
 
