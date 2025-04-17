@@ -262,9 +262,9 @@ def process_3a_kn_part_2(
 
 
 def process_exec_sql(
-        queries: str,
-        internal_variables: list,
-        relevant_mapping_internal_variable_vs_output_table_name: dict,
+        query: str,
+        input_tables: list,
+        output_table: str,
         obj_job: job_components.Job
 ):
     """Process the exec_sql job"""
@@ -273,35 +273,10 @@ def process_exec_sql(
     obj_job.status = settings.JOB_STATUS[1]     # "RUNNING"
     job_dao.edit_job(obj_job=obj_job)
 
-    # 2.1 go through all internal variables from list,
-    # find them in queries and replace them with job prefixed table names in queries
-    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
-    internal_variable_replaced_queries = ''
-    modified_queries = copy.deepcopy(queries)
-    replacements = dict()
-    for internal_variable in internal_variables:
-        replacements[internal_variable] = job_prefix_table_name + internal_variable
-    modified_queries = multiple_replace(modified_queries, replacements)
-    internal_variable_replaced_queries = modified_queries
-    # 2.2 call job.dao.execute_queries(queries[])
-    # by now, all input and internal variables have been replaced in the queries
-    # with the respective run_prefixed and job_prefixed table names
-    all_variables_replaced_queries = internal_variable_replaced_queries
-    job_dao.execute_queries(queries=all_variables_replaced_queries)
+    # 2. materialize the query as a table
+    job_dao.materialize_query_as_table(output_table, query)
 
-    # 3.1 convert relevant_mapping_internal_variable_vs_output_table_name to
-    # relevant_mapping_internal_table_name(job prefixed)_vs_output_table_name(run prefixed)
-    relevant_mapping_internal_table_name_vs_output_table_name = dict()
-    for internal_variable, output_table_name in relevant_mapping_internal_variable_vs_output_table_name.items():
-        relevant_mapping_internal_table_name_vs_output_table_name[job_prefix_table_name + internal_variable] = output_table_name
-    # 3.2 produce output tables(relevant_mapping_internal_table_name(job prefixed)_vs_output_table_name(run prefixed))
-    # go through relevant_mapping_internal_table_name(job prefixed)_vs_output_table_names(run prefixed)'s keys,
-    # get the corresponding output table names, and copy the table contents
-    job_dao.copy_tables_to_tables(
-        mapping_src_table_vs_destination_table=relevant_mapping_internal_table_name_vs_output_table_name
-    )
-
-    # 4. put the job to completed through job.dao call
+    # 3. put the job to completed through job.dao call
     # mark this node's corresponding job to "completed"
     obj_job.status = settings.JOB_STATUS[2]     # "COMPLETED"
     job_dao.edit_job(obj_job=obj_job)

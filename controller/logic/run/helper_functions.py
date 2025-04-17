@@ -229,88 +229,52 @@ def extract_dag_data_for_processing_write_table_job(
 
 
 def extract_dag_data_for_processing_exec_sql_job(
-        incoming_nodes: set, outgoing_nodes: set,
+        incoming_nodes: set,
+        outgoing_nodes: set,
         run_prefix_table_name: str
 ):
     """Helper function for processing exec_sql job"""
     relevant_data = dict()  # answer variable
 
-    # get input variables[] from input nodes
-    # get queries [] from input nodes
-    # get mapping_inner_variable_vs_outer_variable from input nodes
     input_variables = []
-    queries = ''
-    mapping_internal_variable_vs_output_variable = dict()
+    query = ''
+    output_variables = []
     for input_node in incoming_nodes:
         if '=' in input_node.name:  # this node represents either queries or mapping to output variables
             key_value = input_node.name.split("=", 1)  # key-value pair split based on first occurence of =
             key_value = [x.strip() for x in key_value]
-            if key_value[0] == 'queries':
-                packed_together_string_queries = str(key_value[1]).strip()
-                packed_together_string_queries = packed_together_string_queries[
-                                                 1:-1]  # removing starting and trailing " to remove nested strings
-                queries = packed_together_string_queries
-            elif key_value[0] == 'mapping_to_output_variables':
-                packed_together_string_mappings = str(key_value[1]).strip()
-                packed_together_string_mappings = packed_together_string_mappings[1:-1]  # removing surrounding [ and ]
-                list_string_mappings = packed_together_string_mappings.split(',')
-                for string_mapping in list_string_mappings:
-                    mapping = string_mapping.strip()
-                    mapping = mapping[1:-1]
-                    inner_outer = mapping.split(':')
-                    inner_variable = inner_outer[0].strip()
-                    output_variable = inner_outer[1].strip()
-                    if output_variable == "None":
-                        output_variable = None
-                    mapping_internal_variable_vs_output_variable[
-                        inner_variable] = output_variable  # None also in the values here
+            if key_value[0] == 'query':
+                query = str(key_value[1]).strip()
+                query = query[1:-1]  # removing starting and trailing " to remove nested strings
         else:
             # input variable name
             input_variables.append(input_node.name.strip())
 
-    # get internal variable names exhaustive list
-    internal_variables = list(mapping_internal_variable_vs_output_variable.keys())
-
     # get output variable names
-    output_variables = []
     for output_table_node in outgoing_nodes:
         output_variables.append(output_table_node.name.strip())
 
-    # cut down the mappings with value = None (only want those mappings where the interal variable actaully maps to an output variable)
-    relevant_mapping_internal_variable_vs_output_variable = dict()
-    for key, value in mapping_internal_variable_vs_output_variable.items():
-        if value is not None:
-            relevant_mapping_internal_variable_vs_output_variable[key] = value
+    if len(output_variables) > 1:
+        raise ValueError("Error: more than one output variable for exec_sql operator")
 
-    # verify assumption 3
-    # if output variable names o-o map to the output variables in relevant_mapping_internal_variable_vs_output_variable
-    output_variables_from_mapping = relevant_mapping_internal_variable_vs_output_variable.values()
-    set_outer_variables_from_mapping = set(output_variables_from_mapping)
-    set_intersection = set(output_variables).intersection(set_outer_variables_from_mapping)
-    if not (len(set_intersection) == len(output_variables_from_mapping) and
-            len(set_intersection) == len(output_variables)):
-        # error: don't map one to one
-        raise ValueError("output variables mismatch mapping output variables")
-
-    # go through input variables, find them in queries and replace occurrences with run prefixed table names
-    input_replaced_queries = ''
-    modified_queries = copy.deepcopy(queries)
+    # go through input variables, find them in query and replace occurrences with run prefixed table names
+    input_replaced_query = ''
+    input_tables = []
+    output_table = None
+    modified_query = copy.deepcopy(query)
     replacements = dict()
     for variable in input_variables:
-        replacements[variable] = run_prefix_table_name + variable
-    modified_queries = multiple_replace(modified_queries, replacements)
-    input_replaced_queries = modified_queries
+        input_table = run_prefix_table_name + variable
+        input_tables.append(input_table)
+        replacements[variable] = input_table
+    modified_query = multiple_replace(modified_query, replacements)
+    input_replaced_query = modified_query
+    for variable in output_variables:
+        output_table = run_prefix_table_name + variable
 
-    # convert relevant_mapping_internal_variable_vs_output_variable to relevant_mapping_internal_variable_vs_output_table_name(run prefixed)
-    relevant_mapping_internal_variable_vs_output_table_name = dict()
-    for key, value in relevant_mapping_internal_variable_vs_output_variable.items():
-        relevant_mapping_internal_variable_vs_output_table_name[key] = run_prefix_table_name + value
-
-    relevant_data['input_replaced_queries'] = input_replaced_queries
-    relevant_data['internal_variables'] = internal_variables
-    relevant_data['relevant_mapping_internal_variable_vs_output_table_name'] = \
-        relevant_mapping_internal_variable_vs_output_table_name
-
+    relevant_data['input_replaced_query'] = input_replaced_query
+    relevant_data['input_tables'] = input_tables
+    relevant_data['output_table'] = output_table
     return relevant_data
 
 
@@ -470,23 +434,18 @@ def progress_dag(
             # Inputs to exec_sql:
             # first input to exec_sql in the cy program are some input variables:
             # (had been defined earlier in the cy program and supplied as arguments in this exec_sql statement)
-            # second input to exec_sql in the cy program are sql queries
-            # third input to exec_sql in the cy program are some mappings from internal variables to output variables
-            # (output variables are the ones that may be used later in the cy program)
-            # Assumptions:
-            # 1. internal variables are all listed in mapping
-            # 2. In mapping, some internal vars will map to outer vars, and some internal vars will map to "None"
-            # 3. In LHS output: all outer vars of mapping should be present in LHS output, and vice versa (o-o mapping)
+            # second input to exec_sql in the cy program is the sql query
+            # output variables are the ones that may be used later in the cy program
             information: dict = run_helper_functions.extract_dag_data_for_processing_exec_sql_job(
-                incoming_nodes=incoming_nodes, outgoing_nodes=outgoing_nodes,
+                incoming_nodes=incoming_nodes,
+                outgoing_nodes=outgoing_nodes,
                 run_prefix_table_name=run_prefix_table_name
             )
             # pass this info to an internal procedure
             job_helper_functions.process_exec_sql(
-                queries=information.get('input_replaced_queries'),
-                internal_variables=information.get('internal_variables'),
-                relevant_mapping_internal_variable_vs_output_table_name=information.get(
-                    'relevant_mapping_internal_variable_vs_output_table_name'),
+                query=information.get('input_replaced_query'),
+                input_tables=information.get('input_tables'),
+                output_table=information.get('output_table'),
                 obj_job=obj_job
             )
             explore_dag = True
