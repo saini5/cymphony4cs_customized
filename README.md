@@ -109,13 +109,19 @@ python manage.py monitor_tasks --interval 60
 ```
 This command will continuously monitor and process abandoned tasks at the specified interval.
 
+### Using Cymphony as a component in your system
+Cymphony can be integrated as a component in your system by incorporating it into your existing data processing pipeline. 
+
+1. Before letting your users sign up, follow the steps in the link below to configure the admin interface, roles, and special accounts:  
+[![Admin Setup](https://img.shields.io/badge/Admin-Setup-red)](./admin_setup.md)
+
+2. You can use the provided APIs to create workflows and manage runs:  
+[![API Docs](https://img.shields.io/badge/API-Docs-blue)](./api-docs/api-endpoints.md)
+
+3. Then, you can have workers who are either stewards or general users, come in and label the data in your jobs.
+
 ### Exploring the Code
 To dive into the project, start by exploring controller/views.py as an entry point to the main application logic.
-
-### Using Cymphony as a component in your system
-Cymphony can be integrated as a component in your system by incorporating it into your existing data processing pipeline. You can use the provided APIs to create workflows and manage runs.
-
-[![API Docs](https://img.shields.io/badge/API-Docs-blue)](./api-docs/api-endpoints.md)
 
 ## Contributing
 
