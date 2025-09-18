@@ -25,10 +25,12 @@ pip install <pip-package>
     ```bash
     conda env export --no-builds -n cymphony4cs > environment.lock.yml
     ```
-2. **Remove/comment the prefix: line at the end of the environment.lock.yml**, as it contains your system specific path to the env.
+2. **Remove the prefix: line at the end of the environment.lock.yml**, as it contains a machine-specific path and will break portability:
     ```bash
     prefix: C:\Users\...
     ```
+    - Open environment.lock.yml in any editor
+    - Delete the line that starts with prefix:
 3. Commit the changes:  
     ```bash
     git add environment.lock.yml
