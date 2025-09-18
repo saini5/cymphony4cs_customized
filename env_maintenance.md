@@ -21,15 +21,20 @@ pip install <pip-package>
 ```
 
 ## Regenerate and commit the environment.lock.yml file:
-```bash
-# Export exact versions of all packages in the current environment
-conda env export --no-builds -n cymphony4cs > environment.lock.yml
-
-# Commit the changes
-git add environment.lock.yml
-git commit -m "Update lock file after adding/removing packages"
-git push
-```
+1. Export exact versions of all packages in the current environment:  
+    ```bash
+    conda env export --no-builds -n cymphony4cs > environment.lock.yml
+    ```
+2. **Remove/comment the prefix: line at the end of the environment.lock.yml**, as it contains your system specific path to the env.
+    ```bash
+    prefix: C:\Users\...
+    ```
+3. Commit the changes:  
+    ```bash
+    git add environment.lock.yml
+    git commit -m "Update lock file after adding/removing packages"
+    git push
+    ```
 
 > `environment.lock.yml` pins exact versions of all packages and pip dependencies.  
 > Committing this file ensures all collaborators and deployments use the same environment.
