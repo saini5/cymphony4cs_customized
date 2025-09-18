@@ -133,6 +133,9 @@ Then, you can have workers who are either stewards or general users, come in and
 ### Exploring the Code
 To dive into the project, start by exploring controller/views.py as an entry point to the main application logic.
 
+### Maintaining the Conda Environment
+[![Maintain Environment](https://img.shields.io/badge/Maintain-Environment-green)](./env_maintenance.md)
+
 ## License
 
 This project is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).

@@ -36,8 +36,12 @@ Thumbs.db
 
 # Ignore environment variables file
 .env
+.venv/
+*.conda
 
 # Ignore build output directory
 build/
 dist/
 
+# Miscellaneous
+*.egg-info/

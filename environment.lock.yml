@@ -1,0 +1,49 @@
+name: cymphony4cs
+channels:
+  - defaults
+dependencies:
+  - asgiref=3.8.1
+  - boto3=1.17.109
+  - botocore=1.20.109
+  - brotli-python=1.0.9
+  - ca-certificates=2025.2.25
+  - certifi=2024.8.30
+  - cffi=1.17.1
+  - charset-normalizer=2.0.4
+  - cryptography=43.0.0
+  - django=3.2.5
+  - idna=3.7
+  - jmespath=0.10.0
+  - krb5=1.20.1
+  - libffi=3.4.4
+  - libpq=12.20
+  - openssl=3.0.16
+  - pip=24.2
+  - psycopg2=2.9.9
+  - pycparser=2.21
+  - pyopenssl=24.2.1
+  - pysocks=1.7.1
+  - python=3.8.20
+  - python-dateutil=2.9.0post0
+  - pytz=2024.1
+  - requests=2.27.1
+  - s3transfer=0.4.2
+  - setuptools=75.1.0
+  - six=1.16.0
+  - sqlite=3.45.3
+  - sqlparse=0.4.1
+  - typing_extensions=4.1.1
+  - urllib3=1.26.19
+  - vc=14.42
+  - vs2015_runtime=14.42.34433
+  - wheel=0.44.0
+  - win_inet_pton=1.1.0
+  - xmltodict=0.12.0
+  - zlib=1.2.13
+  - pip:
+    - confusable-homoglyphs==3.3.1
+    - django-registration==3.2
+    - gunicorn==20.1.0
+    - psycopg2-binary==2.9.3
+    - whitenoise==6.7.0
+prefix: C:\Users\aman_\anaconda3\envs\cymphony4cs
