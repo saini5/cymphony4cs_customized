@@ -1,0 +1,47 @@
+# Ignore specific files
+setenv.bat
+
+# Ignore archived files
+cymphony4cs/run_workflow_pipeline.py
+cymphony4cs/twisted_code.py
+cymphony4cs/twisted_scheduler.py
+
+# Ignore internal data folder
+cymphony/
+
+# Ignore user experiment folders
+experiments/
+
+# General ignores below
+
+# Ignore all .log files
+*.log
+
+# Ignore all .tmp files
+*.tmp
+
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore Node.js module directory
+node_modules/
+
+# Ignore macOS and windows specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE-specific files (example for VS Code)
+.vscode/
+
+# Ignore environment variables file
+.env
+.venv/
+*.conda
+
+# Ignore build output directory
+build/
+dist/
+
+# Miscellaneous
+*.egg-info/

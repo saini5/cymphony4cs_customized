@@ -88,7 +88,7 @@ Some additional (optional) tools were used for development and maintainence of t
   - Requsters can use cymphony via web apis to publish workflows as part of larger custom code. For example, requester can have some active learning code wherein they may need to start a workflow for each iteration.
   - Synthetic workers can be simulated via web apis so as to test/debug workflows.
 
-## Usage
+## Standalone Usage
 
 Here are some commands to get started:
 
@@ -109,15 +109,32 @@ python manage.py monitor_tasks --interval 60
 ```
 This command will continuously monitor and process abandoned tasks at the specified interval.
 
+<!-- ### Usage Example -->
+
+## Using Cymphony as a component in your system
+Cymphony can be integrated as a component in your system by incorporating it into your existing data processing pipeline. 
+
+### Admin Setup
+Before letting your users sign up, follow the steps in the link below to configure the admin interface, roles, and special accounts:  
+[![Admin Setup](https://img.shields.io/badge/Admin-Setup-red)](./admin_setup.md)
+
+### Creating Workflows using APIs
+You can use the provided APIs to create workflows and manage runs:  
+[![API Docs](https://img.shields.io/badge/API-Docs-blue)](./api-docs/api-endpoints.md)
+
+<!-- 2. To specify workflows, here is the language. -->
+
+### Having Workers Annotate Data
+Then, you can have workers who are either stewards or general users, come in and annotate the data in your jobs.
+<!-- Example here -->
+
+## Contributing
+
 ### Exploring the Code
 To dive into the project, start by exploring controller/views.py as an entry point to the main application logic.
 
-### Using Cymphony as a component in your system
-Cymphony can be integrated as a component in your system by incorporating it into your existing data processing pipeline. You can use the provided APIs to create workflows and manage runs.
-
-[![API Docs](https://img.shields.io/badge/API-Docs-blue)](./api-docs/api-endpoints.md)
-
-## Contributing
+### Maintaining the Conda Environment
+[![Maintain Environment](https://img.shields.io/badge/Maintain-Environment-green)](./env_maintenance.md)
 
 ## License
 

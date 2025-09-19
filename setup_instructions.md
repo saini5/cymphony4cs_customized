@@ -63,22 +63,20 @@
     - Run the script `all_21_together.sql` to setup all functions (along with indices)
   - The database is now ready to be used by cymphony.
 ## Setup the virtual environment
-  - Install Anaconda3 by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/linux.html)
-  - Create a virtual environment by running the command `conda create --name cymphony4cs python=3.8`
-  - Activate the virtual environment by running the command `conda activate cymphony4cs`
-  - To get a list of all environments, run the command `conda info --envs`
-  - To get a list of all the packages installed in the current environment, run the command `conda list`
-  - (TODO the txt file setup) Install the dependencies via conda by running the command `conda install --file requirements.txt`
-  - Install the dependencies inside the conda environment by running the following commands:
-    - `conda install boto3=1.17.109`
-    - `conda install django=3.2`
-    - `conda install xmltodict`
-    - `conda install requests=2.27.1`
-    - `pip install django-registration==3.2`
-    - `pip install psycopg2-binary==2.9.3`
-    - `pip install gunicorn==20.1.0`
-    - `pip install whitenoise==6.7.0`
-      - later versions of whitenoise require python >= 3.9 
+This project uses `conda` to manage dependencies. For strict reproducible setup:
+1. Install Anaconda3 by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/linux.html)
+2. Run the below:  
+    ```bash
+    # 1. Create the environment with locked versions
+    conda env create -f environment.lock.yml
+    
+    # 2. Activate it
+    conda activate cymphony4cs
+    
+    # 3. (Optional) If the environment already exists, update it
+    conda env update -f environment.lock.yml --prune
+    ```
+
 ## Deploy the system
   - Navigate to the directory `cd cymphony4cs/cymphony4cs` and update settings.py file: `vim settings.py`
     - You will see some settings that are being loaded in from environment variables.
