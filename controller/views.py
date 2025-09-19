@@ -59,14 +59,25 @@ def process(request):
             return run_logic.download_file(request)
     elif action_category == 'job_3a_kn':    # worker interactions with 3a_kn human jobs
         if action == 'index':   # list all 3a_kn jobs for worker
-            return job_logic.index(request, job_type=settings.OPERATOR_TYPES[1], job_name=settings.HUMAN_OPERATORS[0])
+            return job_logic.index_3a_kn(request)
         elif action == 'work':    # selected a job to work on
-            return job_logic.work(request)
+            return job_logic.work_3a_kn(request)
         elif action == 'process_annotation':    # submitted an annotation
             return job_logic.process_annotation(request)
         elif action == 'skip': # skip the current task
             return job_logic.skip(request)
         elif action == 'quit':  # quit working on this 3a_kn job
+            return job_logic.quit(request)
+    elif action_category == 'job_3a_knm':    # worker interactions with 3a_knm human jobs
+        if action == 'index':   # list all 3a_knm jobs for worker
+            return job_logic.index_3a_knm(request)
+        elif action == 'work':    # selected a job to work on
+            return job_logic.work_3a_knm(request)
+        elif action == 'process_annotation':    # submitted an annotation
+            return job_logic.process_annotation(request)
+        elif action == 'skip': # skip the current task
+            return job_logic.skip(request)
+        elif action == 'quit':  # quit working on this 3a_knm job
             return job_logic.quit(request)
     elif action_category == 'simulated_run':    # handled separately at top level but uses "run" code wherever possible
         if action == 'index':   # list all simulated runs of a workflow

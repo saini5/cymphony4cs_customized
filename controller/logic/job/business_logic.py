@@ -12,11 +12,14 @@ import controller.logic.pipelined_simulated_run.helper_functions as pipelined_si
 from controller.logic.common_logic_operations import  parse_string_to_list_of_strings
 
 
-def index(request: HttpRequest, job_name: str, job_type: str):
+def index_3a_kn(request: HttpRequest):
     """Return the job listing and options to manipulate them"""
 
     # get the available 3a_kn human jobs
+    job_type = settings.OPERATOR_TYPES[1]
+    job_name = settings.HUMAN_OPERATORS[0]
     job_status = settings.JOB_STATUS[1]     # 'RUNNING'
+    
     list_3a_kn_jobs = job_dao.find_all_jobs(job_name=job_name, job_type=job_type, job_status=job_status)
 
     # show on screen via the response
@@ -24,12 +27,31 @@ def index(request: HttpRequest, job_name: str, job_type: str):
         'section': 'worker',
         'list_3a_kn_jobs': list_3a_kn_jobs
     }
-    template = loader.get_template('controller/job/job_management_index.html')
+    template = loader.get_template('controller/job/job_management_index_3a_kn.html')
+    response = HttpResponse(template.render(context, request))
+    return response
+
+def index_3a_knm(request: HttpRequest):
+    """Return the job listing and options to manipulate them"""
+
+    # get the available 3a_kn human jobs
+    job_type = settings.OPERATOR_TYPES[1]
+    job_name = settings.HUMAN_OPERATORS[3]
+    job_status = settings.JOB_STATUS[1]     # 'RUNNING'
+    
+    list_3a_knm_jobs = job_dao.find_all_jobs(job_name=job_name, job_type=job_type, job_status=job_status)
+
+    # show on screen via the response
+    context = {
+        'section': 'worker',
+        'list_3a_knm_jobs': list_3a_knm_jobs
+    }
+    template = loader.get_template('controller/job/job_management_index_3a_knm.html')
     response = HttpResponse(template.render(context, request))
     return response
 
 
-def work(request: HttpRequest):
+def work_3a_kn(request: HttpRequest):
     """Assign a task to this worker and return annotation page"""
 
     # get this worker's id
@@ -50,110 +72,53 @@ def work(request: HttpRequest):
     request.session['current_job_run'] = obj_job.run_id
     request.session['current_job'] = obj_job.id
 
-    if obj_job.type == settings.OPERATOR_TYPES[1] and obj_job.name == settings.HUMAN_OPERATORS[0]:    # human, and 3a_kn
-        # 1. prepare for assign and annotate
-        # load worker instructions for this job,
-        # and save it in session to fasten repeated access during successive assignments
-        instructions_dict = job_dao.get_instructions(
-            requester_id=requester_id,
-            project_id=project_id,
-            workflow_id=workflow_id,
-            run_id=run_id,
-            job_id=job_id
-        )
-        for key, value in instructions_dict.items():
-            if key == 'short_instructions':
-                request.session['task_short_instructions'] = value
-            elif key == 'long_instructions':
-                request.session['task_long_instructions'] = value
-        # load layout for this job, and save it in session to fasten repeated access during successive assignments
-        layout_dict = job_dao.get_layout(
-            requester_id=requester_id,
-            project_id=project_id,
-            workflow_id=workflow_id,
-            run_id=run_id,
-            job_id=job_id
-        )
-        for key, value in layout_dict.items():
-            if key == 'design_layout':
-                request.session['task_design_layout'] = value
-        # load config parameters for this job, , and save them in session to fasten repeated access during successive assignments
-        configuration_dict = job_dao.get_configuration(
-            requester_id=requester_id,
-            project_id=project_id,
-            workflow_id=workflow_id,
-            run_id=run_id,
-            job_id=job_id
-        )
-        for key, value in configuration_dict.items():
-            # pre-processing
-            if value.startswith('"') and value.endswith('"'):
-                value = value[1:-1]
-            if key == 'question':
-                request.session['task_question'] = value
-            elif key == 'answers':
-                if value == settings.FREE_TEXT_ANSWER:  # free text
-                    request.session['task_option_list'] = None
-                else:
-                    unparsed_answers: str = value
-                    answers: list = parse_string_to_list_of_strings(unparsed_answers)
-                    request.session['task_option_list'] = answers
-            elif key == 'annotation_time_limit':
-                # TODO: this int should come from type_data_value in j_configuration table. so the proper type should also have been added when the j_configuration table was created.
-                request.session['task_annotation_time_limit'] = int(value)
-            elif key == 'k':
-                request.session['job_k'] = int(value)
-            elif key == 'n':
-                request.session['job_n'] = int(value)
-        count_tasks: int = job_dao.get_count_tasks(obj_job=obj_job)
-        request.session['count_tasks'] = count_tasks
+    # 1. prepare for assign and annotate
+    load_common_variables_for_assign_and_annotate(request, obj_job)
 
-        # 2. assign task to worker for this 3a_kn job
-        task_id = job_helper_functions.assign_3a_kn(
-            worker_id,
-            obj_job,
-            request.session['job_k'],
-            request.session['job_n'],
-            request.session['task_annotation_time_limit'],
-            request.session['count_tasks']
-        )
-        request.session['assigned_task_id'] = task_id
-        if task_id == 0:
-            context = {
-                'section': 'worker',
-                'message': 'this worker did not get any task',
-                'worker_code': settings.WORKER_CODES['DELAYED_RETRY']
-            }
-            # for api requests such as by simulated workers
-            if 'python' in request.headers.get('User-Agent'):
-                return JsonResponse(context)
-            # usual case: for requests via GUI
-            return HttpResponse(context)
-        if task_id < 0:
-            context = {
-                'section': 'worker',
-                'message': 'human operator is not collecting annotations for any task',
-                'worker_code': settings.WORKER_CODES['QUIT']
-            }
-            # for api requests such as by simulated workers
-            if 'python' in request.headers.get('User-Agent'):
-                return JsonResponse(context)
-            # usual case: for requests via GUI
-            return HttpResponse(context)
+    # 2. assign task to worker for this 3a_kn job
+    task_id = job_helper_functions.assign_3a_kn(
+        worker_id,
+        obj_job,
+        request.session['job_k'],
+        request.session['job_n'],
+        request.session['task_annotation_time_limit'],
+        request.session['count_tasks']
+    )
+    request.session['assigned_task_id'] = task_id
+    if task_id == 0:
+        context = {
+            'section': 'worker',
+            'message': 'this worker did not get any task',
+            'worker_code': settings.WORKER_CODES['DELAYED_RETRY']
+        }
+        # for api requests such as by simulated workers
+        if 'python' in request.headers.get('User-Agent'):
+            return JsonResponse(context)
+        # usual case: for requests via GUI
+        return HttpResponse(context)
+    if task_id < 0:
+        context = {
+            'section': 'worker',
+            'message': 'human operator is not collecting annotations for any task',
+            'worker_code': settings.WORKER_CODES['QUIT']
+        }
+        # for api requests such as by simulated workers
+        if 'python' in request.headers.get('User-Agent'):
+            return JsonResponse(context)
+        # usual case: for requests via GUI
+        return HttpResponse(context)
 
-        # 3. get_annotation_page for this task of 3a_kn job
-        page_contents = job_helper_functions.get_annotation_page_3a_kn(
-            obj_job=obj_job,
-            task_id=task_id,
-            task_question=request.session['task_question'],
-            task_option_list=request.session['task_option_list'],
-            task_annotation_time_limit=request.session['task_annotation_time_limit'],
-            task_short_instructions=request.session['task_short_instructions'],
-            task_long_instructions=request.session['task_long_instructions'],
-            task_design_layout=request.session['task_design_layout']
-        )
-    else:
-        raise ValueError("Operator not recognized, so cannot work on job")
+    # 3. get_annotation_page for this task of 3a_kn job
+    page_contents = job_helper_functions.get_annotation_page_3a_kn(
+        obj_job=obj_job,
+        task_id=task_id,
+        task_question=request.session['task_question'],
+        task_option_list=request.session['task_option_list'],
+        task_annotation_time_limit=request.session['task_annotation_time_limit'],
+        task_short_instructions=request.session['task_short_instructions'],
+        task_long_instructions=request.session['task_long_instructions'],
+        task_design_layout=request.session['task_design_layout']
+    )
 
     # show on screen via the response
     context = {
@@ -171,10 +136,99 @@ def work(request: HttpRequest):
     if 'python' in request.headers.get('User-Agent'):
         return JsonResponse(context)
     # usual case: for requests via GUI
-    template = loader.get_template('controller/job/task_annotation_page.html')
+    template = loader.get_template('controller/job/task_annotation_page_3a_kn.html')
     response = HttpResponse(template.render(context, request))
     return response
 
+def work_3a_knm(request: HttpRequest):
+    """Assign a task to this worker and return annotation page for 3a_knm job"""
+
+    # get this worker's id
+    worker_id = request.user.id
+    # get this job's identifiers
+    requester_id, project_id, workflow_id, run_id, job_id = job_helper_functions.get_job_identifiers(request)
+    obj_job: job_components.Job = job_dao.find_job(
+        job_id=job_id,
+        run_id=run_id,
+        workflow_id=workflow_id,
+        project_id=project_id,
+        user_id=requester_id
+    )
+    request.session['current_job_requester'] = obj_job.user_id
+    request.session['current_job_project'] = obj_job.project_id
+    request.session['current_job_workflow'] = obj_job.workflow_id
+    request.session['current_job_run'] = obj_job.run_id
+    request.session['current_job'] = obj_job.id
+
+    # 1. prepare for assign and annotate
+    load_common_variables_for_assign_and_annotate(request, obj_job)
+
+    # 2. assign task to worker for this 3a_knm job
+    # TODO: implement assign_3a_knm
+    task_id = job_helper_functions.assign_3a_knm(
+        worker_id,
+        obj_job,
+        request.session['job_k'],
+        request.session['job_n'],
+        request.session['job_m'],
+        request.session['task_annotation_time_limit'],
+        request.session['count_tasks']
+    )
+    request.session['assigned_task_id'] = task_id
+    if task_id == 0:
+        context = {
+            'section': 'worker',
+            'message': 'this worker did not get any task',
+            'worker_code': settings.WORKER_CODES['DELAYED_RETRY']
+        }
+        # for api requests such as by simulated workers
+        if 'python' in request.headers.get('User-Agent'):
+            return JsonResponse(context)
+        # usual case: for requests via GUI
+        return HttpResponse(context)
+    if task_id < 0:
+        context = {
+            'section': 'worker',
+            'message': 'human operator is not collecting annotations for any task',
+            'worker_code': settings.WORKER_CODES['QUIT']
+        }
+        # for api requests such as by simulated workers
+        if 'python' in request.headers.get('User-Agent'):
+            return JsonResponse(context)
+        # usual case: for requests via GUI
+        return HttpResponse(context)
+
+    # 3. get_annotation_page for this task of 3a_knm job
+    # TODO: implement get_annotation_page_3a_knm
+    page_contents = job_helper_functions.get_annotation_page_3a_knm(
+        obj_job=obj_job,
+        task_id=task_id,
+        task_question=request.session['task_question'],
+        task_option_list=request.session['task_option_list'],
+        task_annotation_time_limit=request.session['task_annotation_time_limit'],
+        task_short_instructions=request.session['task_short_instructions'],
+        task_long_instructions=request.session['task_long_instructions'],
+        task_design_layout=request.session['task_design_layout']
+    )
+    # show on screen via the response
+    context = {
+        'section': 'worker',
+        'task_question': page_contents['task_question'],
+        'task_representation': page_contents['task_representation'],
+        'task_option_list': page_contents['task_option_list'],
+        'task_short_instructions': page_contents['task_short_instructions'],
+        'task_long_instructions': page_contents['task_long_instructions'],
+        'header_value_dict': page_contents['header_value_dict'],
+        'timer': page_contents['timer'],
+        'worker_code': settings.WORKER_CODES['ANNOTATE']
+    }
+    # for api requests such as by simulated workers
+    if 'python' in request.headers.get('User-Agent'):
+        return JsonResponse(context)
+    # usual case: for requests via GUI
+    template = loader.get_template('controller/job/task_annotation_page_3a_knm.html')
+    response = HttpResponse(template.render(context, request))
+    return response
 
 def process_annotation(request: HttpRequest):
     """Process the annotation provided by worker and subsequently assign a new task to this worker"""
@@ -422,3 +476,64 @@ def skip(request: HttpRequest):
         So we don't need to do anything here.
         """
         raise ValueError("You just skipped a task, but the job is completed. This should not happen.")
+
+
+def load_common_variables_for_assign_and_annotate(request: HttpRequest, obj_job: job_components.Job):
+    """Load common variables for assign and annotate."""
+    # load worker instructions for this job,
+    # and save it in session to fasten repeated access during successive assignments
+    instructions_dict = job_dao.get_instructions(
+        requester_id=request.session['current_job_requester'],
+        project_id=request.session['current_job_project'],
+        workflow_id=request.session['current_job_workflow'],
+        run_id=request.session['current_job_run'],
+        job_id=request.session['current_job']
+    )
+    for key, value in instructions_dict.items():
+        if key == 'short_instructions':
+            request.session['task_short_instructions'] = value
+        elif key == 'long_instructions':
+            request.session['task_long_instructions'] = value
+    # load layout for this job, and save it in session to fasten repeated access during successive assignments
+    layout_dict = job_dao.get_layout(
+        requester_id=request.session['current_job_requester'],
+        project_id=request.session['current_job_project'],
+        workflow_id=request.session['current_job_workflow'],
+        run_id=request.session['current_job_run'],
+        job_id=request.session['current_job']
+    )
+    for key, value in layout_dict.items():
+        if key == 'design_layout':
+            request.session['task_design_layout'] = value
+    # load config parameters for this job, , and save them in session to fasten repeated access during successive assignments
+    configuration_dict = job_dao.get_configuration(
+        requester_id=request.session['current_job_requester'],
+        project_id=request.session['current_job_project'],
+        workflow_id=request.session['current_job_workflow'],
+        run_id=request.session['current_job_run'],
+        job_id=request.session['current_job']
+    )
+    for key, value in configuration_dict.items():
+        # pre-processing
+        if value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+        if key == 'question':
+            request.session['task_question'] = value
+        elif key == 'answers':
+            if value == settings.FREE_TEXT_ANSWER:  # free text
+                request.session['task_option_list'] = None
+            else:
+                unparsed_answers: str = value
+                answers: list = parse_string_to_list_of_strings(unparsed_answers)
+                request.session['task_option_list'] = answers
+        elif key == 'annotation_time_limit':
+            # TODO: this int should come from type_data_value in j_configuration table. so the proper type should also have been added when the j_configuration table was created.
+            request.session['task_annotation_time_limit'] = int(value)
+        elif key == 'k':
+            request.session['job_k'] = int(value)
+        elif key == 'n':
+            request.session['job_n'] = int(value)
+        elif key == 'm':
+            request.session['job_m'] = int(value)
+    count_tasks: int = job_dao.get_count_tasks(obj_job=obj_job)
+    request.session['count_tasks'] = count_tasks
