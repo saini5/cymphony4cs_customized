@@ -63,7 +63,7 @@ def process(request):
         elif action == 'work':    # selected a job to work on
             return job_logic.work_3a_kn(request)
         elif action == 'process_annotation':    # submitted an annotation
-            return job_logic.process_annotation(request)
+            return job_logic.process_annotation_3a_kn(request)
         elif action == 'skip': # skip the current task
             return job_logic.skip(request)
         elif action == 'quit':  # quit working on this 3a_kn job

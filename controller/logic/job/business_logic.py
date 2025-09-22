@@ -228,7 +228,7 @@ def work_3a_knm(request: HttpRequest):
     response = HttpResponse(template.render(context, request))
     return response
 
-def process_annotation(request: HttpRequest):
+def process_annotation_3a_kn(request: HttpRequest):
     """Process the annotation provided by worker and subsequently assign a new task to this worker"""
 
     # retrieve ids from session variables
@@ -299,7 +299,7 @@ def process_annotation(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/task_annotation_page.html')
+        template = loader.get_template('controller/job/task_annotation_page_3a_kn.html')
         response = HttpResponse(template.render(context, request))
         return response
     elif new_task_id == 0:
@@ -314,7 +314,7 @@ def process_annotation(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/no_available_task.html')
+        template = loader.get_template('controller/job/no_available_task_3a_kn.html')
         response = HttpResponse(template.render(context, request))
         return response
     else:  # new_task_id < 0:
@@ -345,7 +345,7 @@ def process_annotation(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/no_available_task.html')
+        template = loader.get_template('controller/job/no_available_task_3a_kn.html')
         response = HttpResponse(template.render(context, request))
         return response
 
