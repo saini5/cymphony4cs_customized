@@ -164,7 +164,6 @@ def work_3a_knm(request: HttpRequest):
     load_common_variables_for_assign_and_annotate(request, obj_job)
 
     # 2. assign task to worker for this 3a_knm job
-    # TODO: implement assign_3a_knm
     task_id = job_helper_functions.assign_3a_knm(
         worker_id,
         obj_job,

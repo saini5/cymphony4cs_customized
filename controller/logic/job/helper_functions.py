@@ -166,6 +166,17 @@ def assign_3a_kn(worker_id: int, obj_job: job_components.Job, job_k: int, job_n:
         return -1
 
 
+def assign_3a_knm(worker_id: int, obj_job: job_components.Job, job_k: int, job_n: int, job_m: int, task_annotation_time_limit: int, count_tasks: int):
+    """Assign task to worker"""
+    all_tasks_have_aggregated_labels: bool = job_dao.check_all_tasks_have_aggregated_labels(obj_job, count_tasks)
+    if not all_tasks_have_aggregated_labels:
+        # possibility of task being assigned to worker
+        return job_dao.assign_3a_knm(worker_id, obj_job, job_k, job_n, job_m, task_annotation_time_limit)
+    else:
+        # job is no more collecting annotations for any tasks
+        return -1
+
+
 def get_annotation_page_3a_kn(
         obj_job: job_components.Job,
         task_id: int,

@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.conf import settings
 
 import controller.logic.job.components as job_components
-from controller.logic.common_data_access_operations import dict_fetchall, dict_fetchone
+from controller.logic.common_data_access_operations import dict_fetchall, dict_fetchone, is_steward
 from controller.logic.common_logic_operations import get_job_prefix_table_name
 
 from pathlib import Path
@@ -580,6 +580,59 @@ def assign_3a_kn(worker_id: int, obj_job: job_components.Job, job_k: int, job_n:
         # break
 
 
+def assign_3a_knm(worker_id: int, obj_job: job_components.Job, job_k: int, job_n: int, job_m: int, task_annotation_time_limit: int):
+    """Assign task to worker"""
+    cursor = connection.cursor()
+    try:
+        with transaction.atomic():
+            task = None
+            task = get_and_lock_task_of_job_for_worker(cursor=cursor, worker_id=worker_id, obj_job=obj_job)
+            if not task:
+                # worker did not get any candidate tasks despite some label aggregations remaining'
+                # either all tasks were done, or all tasks had been annotated by this worker or a combination of the previous two
+                # or some tasks had been locked by other workers (for assign or submit annotation) so this worker skipped over them
+                print('return No available tasks for you')
+                return 0
+
+            task_id = task[0]
+
+            # assign t to w
+            # print('worker ', worker_id, ' getting assignment of ', task_id, ' in assignments table')
+            add_assignment_for_task_in_assign(cursor=cursor, task_id=task_id, obj_job=obj_job, worker_id=worker_id, annotation_time_limit=task_annotation_time_limit)
+
+            #  t.total_assigned++, t.pending_annotation+
+            task_total_assigned = task[1] + 1
+            task_pending_annotations = task[3] + 1
+            task_abandoned = task[2]
+            task_done = task[4]
+            
+            # if this worker is a steward, check how many stewards have already been assigned this task.
+            if is_steward(worker_id):
+                task_assignments_in_progress_by_stewards = get_assignments_in_progress_by_stewards(cursor=cursor, task_id=task_id, obj_job=obj_job)
+                # assignments in progress for this task, by stewards
+                if task_assignments_in_progress_by_stewards >= job_m:
+                    task_done = True
+            # assignments in progress in general, for this task
+            if task_total_assigned - task_abandoned >= job_k:
+                task_done = True
+
+            # this will unlock the task as well
+            # print('worker ', worker_id,
+            #       ' updating task stats', task_id, ' in tasks table and hence, releasing lock on task')
+            update_tasks_for_task_in_assign(cursor=cursor, obj_job=obj_job, task_id=task_id, task_total_assigned=task_total_assigned, task_pending_annotations=task_pending_annotations, task_done=task_done)
+
+            return task_id
+
+    except ValueError as err:
+        print('Data access exception in assign_3a_knm')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+        # break
+
+
 def get_and_lock_task_of_job_for_worker(
         cursor,
         worker_id: int,
@@ -693,6 +746,41 @@ def add_assignment_for_task_in_assign(
         ]
     )
     return
+
+
+def get_assignments_in_progress_by_stewards(cursor, task_id: int, obj_job: job_components.Job):
+    """Get assignments in progress for this task, by stewards"""
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_assignments = job_prefix_table_name + "assignments"
+    cursor.execute(f"""
+        WITH steward_users AS (
+            SELECT user_id 
+            FROM auth_user_groups 
+            INNER JOIN auth_group ON auth_user_groups.group_id = auth_group.id 
+            WHERE auth_group.name = 'steward'
+        ),
+        pending_count AS (
+            SELECT COUNT(*) AS pending_assignments
+            FROM {table_assignments}
+            WHERE _id = %s 
+            AND worker_id IN (SELECT user_id FROM steward_users)
+            AND status = %s
+        ),
+        abandoned_count AS (
+            SELECT COUNT(*) AS abandoned_assignments
+            FROM {table_assignments}
+            WHERE _id = %s
+            AND worker_id IN (SELECT user_id FROM steward_users)
+            AND status = %s
+        )
+        SELECT 
+            (SELECT pending_assignments FROM pending_count) -
+            (SELECT abandoned_assignments FROM abandoned_count)
+        """,
+        [task_id, settings.ASSIGNMENT_STATUS[0], task_id, settings.ASSIGNMENT_STATUS[2]]
+    )
+    assignments_in_progress_by_stewards = cursor.fetchone()[0]
+    return assignments_in_progress_by_stewards
 
 
 def update_tasks_for_task_in_assign(cursor, obj_job: job_components.Job, task_id: int, task_total_assigned: int, task_pending_annotations:int, task_done: bool):
