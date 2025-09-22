@@ -197,9 +197,8 @@ def work_3a_knm(request: HttpRequest):
         # usual case: for requests via GUI
         return HttpResponse(context)
 
-    # 3. get_annotation_page for this task of 3a_knm job
-    # TODO: implement get_annotation_page_3a_knm
-    page_contents = job_helper_functions.get_annotation_page_3a_knm(
+    # 3. get_annotation_page for this task of 3a_knm job (same contents to show as 3a_kn)
+    page_contents = job_helper_functions.get_annotation_page_3a_kn(
         obj_job=obj_job,
         task_id=task_id,
         task_question=request.session['task_question'],
