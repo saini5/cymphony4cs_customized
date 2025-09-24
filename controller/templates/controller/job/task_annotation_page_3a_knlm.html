@@ -179,7 +179,7 @@
     </script>
     <br>
 
-    <form action="{% url "controller:process" %}?category=job_3a_knm&action=process_annotation" method="post">
+    <form action="{% url "controller:process" %}?category=job_3a_knlm&action=process_annotation" method="post">
         {#            <!-- ids will be session contained -->#}
         {% csrf_token %}
         <br><br>
@@ -210,10 +210,10 @@
         <br>
         <input type="submit" value="Submit">
         <br><br>
-        <a href="{% url "controller:process" %}?category=job_3a_knm&action=skip">Skip</a>
+        <a href="{% url "controller:process" %}?category=job_3a_knlm&action=skip">Skip</a>
         <br>
         <br>
-        <a href="{% url "controller:process" %}?category=job_3a_knm&action=quit">Quit</a>
+        <a href="{% url "controller:process" %}?category=job_3a_knlm&action=quit">Quit</a>
     </form>
 
 {% endblock %}

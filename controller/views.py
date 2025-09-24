@@ -9,6 +9,8 @@ from controller.logic.simulated_run import business_logic as simulated_run_logic
 from controller.logic.pipelined_simulated_run import business_logic as pipelined_simulated_run_logic
 from controller.logic.job import business_logic as job_logic
 
+from controller.enums import UserType
+
 
 @login_required
 def process(request):
@@ -68,16 +70,18 @@ def process(request):
             return job_logic.skip(request)
         elif action == 'quit':  # quit working on this 3a_kn job
             return job_logic.quit(request)
-    elif action_category == 'job_3a_knm':    # worker interactions with 3a_knm human jobs
-        if action == 'index':   # list all 3a_knm jobs for worker
-            return job_logic.index_3a_knm(request)
+    elif action_category == 'job_3a_knlm':    # worker interactions with 3a_knlm human jobs
+        # Add user type as a request attribute for use in business logic
+        request.user_type = UserType.from_user_id(request.user.id)
+        if action == 'index':   # list all 3a_knlm jobs for worker
+            return job_logic.index_3a_knlm(request)
         elif action == 'work':    # selected a job to work on
-            return job_logic.work_3a_knm(request)
+            return job_logic.work_3a_knlm(request)
         elif action == 'process_annotation':    # submitted an annotation
-            return job_logic.process_annotation(request)
+            return job_logic.process_annotation_3a_knlm(request)
         elif action == 'skip': # skip the current task
             return job_logic.skip(request)
-        elif action == 'quit':  # quit working on this 3a_knm job
+        elif action == 'quit':  # quit working on this 3a_knlm job
             return job_logic.quit(request)
     elif action_category == 'simulated_run':    # handled separately at top level but uses "run" code wherever possible
         if action == 'index':   # list all simulated runs of a workflow

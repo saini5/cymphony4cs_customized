@@ -207,7 +207,7 @@ RUN_STATUS = ['IDLE', 'RUNNING', 'COMPLETED']
 
 OPERATOR_TYPES = ['automatic', 'human']
 
-HUMAN_OPERATORS = ['3a_kn', '3a_amt', '3a_knm']
+HUMAN_OPERATORS = ['3a_kn', '3a_amt', '3a_knlm']
 
 AUTOMATIC_OPERATORS = ['read_table', 'sample_random', 'exec_sql', 'write_table']
 

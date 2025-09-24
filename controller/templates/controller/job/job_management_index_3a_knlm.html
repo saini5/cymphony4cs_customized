@@ -6,8 +6,8 @@
     <h1>Jobs Dashboard</h1>
     <br>
 
-    <h3>Available human 3a_knm jobs</h3>
-    {% for j in list_3a_knm_jobs %}
+    <h3>Available human 3a_knlm jobs</h3>
+    {% for j in list_3a_knlm_jobs %}
           <ul class="list-group list-group-horizontal-sm">
               <li class="list-group-item">
                   Requester: {{ j.user_id }}
@@ -25,7 +25,7 @@
                   Job: {{ j.id }}
               </li>
               <li class="list-group-item">
-                  <a href="{% url "controller:process" %}?category=job_3a_knm&action=work&uid={{ j.user_id }}&pid={{ j.project_id }}&wid={{ j.workflow_id }}&rid={{ j.run_id }}&jid={{ j.id }}">
+                  <a href="{% url "controller:process" %}?category=job_3a_knlm&action=work&uid={{ j.user_id }}&pid={{ j.project_id }}&wid={{ j.workflow_id }}&rid={{ j.run_id }}&jid={{ j.id }}">
                       Work on this job
                   </a>
               </li>
