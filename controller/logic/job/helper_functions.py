@@ -251,8 +251,8 @@ def aggregate_3a_kn(obj_job: job_components.Job, job_k: int, job_n: int, worker_
         answer=answer
     )
 
-def aggregate_3a_knm(obj_job: job_components.Job, job_k: int, job_n: int, job_m: int, worker_id: int, task_id: int, answer: str):
-    """Aggregate task annotations as part of 3a_kn job"""
+def aggregate_for_regular_workers_as_part_of_knlm(obj_job: job_components.Job, job_k: int, job_n: int, worker_id: int, task_id: int, answer: str):
+    """Aggregate task annotations for regular workers as part of 3a_knlm job"""
     # updating assignment to completed
     already_abandoned = job_dao.update_assignment_for_task_in_aggregate(
         obj_job=obj_job,
@@ -264,12 +264,33 @@ def aggregate_3a_knm(obj_job: job_components.Job, job_k: int, job_n: int, job_m:
         return
 
     # putting to outputs and aggregating
-    job_dao.bookkeeping_and_aggregate_3a_knm(
+    job_dao.bookkeeping_and_aggregate_for_regular_workers(
         obj_job=obj_job,
         task_id=task_id,
         worker_id=worker_id,
         job_k=job_k,
         job_n=job_n,
+        answer=answer
+    )
+
+def aggregate_for_steward_workers_as_part_of_knlm(obj_job: job_components.Job, job_l: int, job_m: int, worker_id: int, task_id: int, answer: str):
+    """Aggregate task annotations for steward workers as part of 3a_knlm job"""
+    # updating assignment to completed
+    already_abandoned = job_dao.update_assignment_for_task_in_aggregate(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id
+    )
+
+    if already_abandoned:
+        return
+
+    # putting to outputs and aggregating
+    job_dao.bookkeeping_and_aggregate_for_steward_workers(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id,
+        job_l=job_l,
         job_m=job_m,
         answer=answer
     )

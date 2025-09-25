@@ -749,6 +749,52 @@ def add_assignment_for_task_in_assign(
     return
 
 
+def get_qualifying_annotation_for_task(cursor, task_id: int, obj_job: job_components.Job, worker_type: UserType, threshold: int):
+    """Get qualifying annotation for a task filtered by worker type (steward or regular)"""
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_outputs = job_prefix_table_name + "outputs"
+    
+    worker_type_name = worker_type.value
+    
+    cursor.execute(f"""
+        SELECT VOTES_PER_ANNOTATION.annotation 
+        FROM ( 
+            SELECT TASK_ANNOTATIONS.annotation, count(*) AS n_votes 
+            FROM ( 
+                SELECT O._id, O.worker_id, O.annotation 
+                FROM {table_outputs} O
+                INNER JOIN auth_user_groups AUG ON O.worker_id = AUG.user_id
+                INNER JOIN auth_group AG ON AUG.group_id = AG.id
+                WHERE O._id = %s 
+                AND AG.name = %s
+            ) AS TASK_ANNOTATIONS 
+            GROUP BY TASK_ANNOTATIONS.annotation 
+        ) AS VOTES_PER_ANNOTATION 
+        WHERE VOTES_PER_ANNOTATION.n_votes >= %s
+        """,
+        [task_id, worker_type_name, threshold]
+    )
+    return cursor.fetchone()
+
+def get_total_annotations_for_task(cursor, task_id: int, obj_job: job_components.Job, worker_type: UserType):
+    """Get total annotations for a task filtered by worker type (steward or regular)"""
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_outputs = job_prefix_table_name + "outputs"
+    
+    worker_type_name = worker_type.value
+    
+    cursor.execute(f"""
+        SELECT COUNT(*) AS total_annotations
+        FROM {table_outputs} O
+        INNER JOIN auth_user_groups AUG ON O.worker_id = AUG.user_id
+        INNER JOIN auth_group AG ON AUG.group_id = AG.id
+        WHERE O._id = %s 
+        AND AG.name = %s
+        """,
+        [task_id, worker_type_name]
+    )
+    return cursor.fetchone()
+
 def get_active_assignments_by_stewards(cursor, task_id: int, obj_job: job_components.Job):
     """Get active assignments (pending or completed) for this task, by stewards"""
     
@@ -1038,7 +1084,7 @@ def bookkeeping_and_aggregate_3a_kn(obj_job: job_components.Job, task_id: int, w
                 "UPDATE " +
                 table_tasks +
                 " SET pending_annotations = %s, done = %s  WHERE _id = %s",
-                [task[3] - 1, task_done, task[0]]
+                [task[3] - 1, task_done, task_id]
             )
 
             return
@@ -1052,8 +1098,8 @@ def bookkeeping_and_aggregate_3a_kn(obj_job: job_components.Job, task_id: int, w
         cursor.close()
         # break
 
-def bookkeeping_and_aggregate_3a_knm(obj_job: job_components.Job, task_id: int, worker_id: int, job_k: int, job_n: int, job_m: int, answer: str):
-    """Aggregate task's annotations"""
+def bookkeeping_and_aggregate_for_regular_workers(obj_job: job_components.Job, task_id: int, worker_id: int, job_k: int, job_n: int, answer: str):
+    """Aggregate task's annotations for regular workers"""
     cursor = connection.cursor()
     try:
         with transaction.atomic():
@@ -1086,34 +1132,14 @@ def bookkeeping_and_aggregate_3a_knm(obj_job: job_components.Job, task_id: int, 
 
             flag_k_votes_agree = False  # if k votes agree out of n
             final_annotation = settings.DEFAULT_AGGREGATION_LABEL  # 'undecided'
-            cursor.execute(
-                "SELECT VOTES_PER_ANNOTATION.annotation " +
-                "FROM ( " +
-                "   SELECT TASK_ANNOTATIONS.annotation, count(*) AS n_votes " +
-                "   FROM ( " +
-                "       SELECT _id, worker_id, annotation " +
-                "       FROM " + table_outputs + " " +
-                "       WHERE _id = %s " +
-                "   ) AS TASK_ANNOTATIONS " +
-                "   GROUP BY TASK_ANNOTATIONS.annotation " +
-                ") AS VOTES_PER_ANNOTATION " +
-                "WHERE VOTES_PER_ANNOTATION.n_votes >= %s",
-                [task_id, job_k]
-            )
-            final_annotation_row = cursor.fetchone()
+            final_annotation_row = get_qualifying_annotation_for_task(cursor, task_id, obj_job, UserType.REGULAR, job_k)
             if not final_annotation_row:
                 pass    # flag_k_votes_agree remains False
             else:
                 flag_k_votes_agree = True
                 final_annotation = final_annotation_row[0]
 
-            cursor.execute(
-                "SELECT count(*) AS n_task_annotations " +
-                "FROM " + table_outputs + " " +
-                "WHERE _id = %s ",
-                [task_id]
-            )
-            n_task_annotations_row = cursor.fetchone()
+            n_task_annotations_row = get_total_annotations_for_task(cursor, task_id, obj_job, UserType.REGULAR)
             n_task_annotations = int(n_task_annotations_row[0])
 
             # main logic
@@ -1136,16 +1162,100 @@ def bookkeeping_and_aggregate_3a_knm(obj_job: job_components.Job, task_id: int, 
                         task_done = False
             # else: votes < k, so just wait for enough votes.
 
-            task_done = task_done
-
             # aggregate ends
             # print('worker ', worker_id, ' updating task ', task_id, ' in tasks table and releasing lock')
             cursor.execute(
                 "UPDATE " +
                 table_tasks +
                 " SET pending_annotations = %s, done = %s  WHERE _id = %s",
-                [task[3] - 1, task_done, task[0]]
+                [task[3] - 1, task_done, task_id]
             )
+
+            return
+
+    except ValueError as err:
+        print('Data access exception in bookkeeping and aggregate')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+        # break
+
+def bookkeeping_and_aggregate_for_steward_workers(obj_job: job_components.Job, task_id: int, worker_id: int, job_l: int, job_m: int, answer: str):
+    """Aggregate task's annotations for steward workers"""
+    cursor = connection.cursor()
+    try:
+        with transaction.atomic():
+
+            job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+            table_tasks = job_prefix_table_name + "tasks"
+            table_outputs = job_prefix_table_name + "outputs"
+
+            # print('worker ', worker_id, ' fetching task', task_id, ' in lock from tasks table')
+            # Steward case only cares about _id and done in the tasks table, other fields are solely for regular workers.
+            cursor.execute(
+                "SELECT _id, done FROM " +
+                table_tasks +
+                " WHERE _id = %s FOR UPDATE",
+                [task_id]
+            )
+            task = cursor.fetchone()
+
+            # print('worker ', worker_id, ' inserting to outputs within task ', task_id, ' lock')
+            # Push annotation to p1_w1_task_outputs (O)
+            cursor.execute(
+                "INSERT into " +
+                table_outputs +
+                " (_id, annotation, worker_id) VALUES (%s, %s, %s)",
+                [task_id, answer, worker_id]
+            )
+
+            # aggregate start
+            task_id = task[0]
+            task_done = task[1]
+
+            flag_l_votes_agree = False  # if l votes agree out of m
+            final_annotation = settings.DEFAULT_AGGREGATION_LABEL  # 'undecided'
+            final_annotation_row = get_qualifying_annotation_for_task(cursor, task_id, obj_job, UserType.STEWARD, job_l)
+            if not final_annotation_row:
+                pass    # flag_l_votes_agree remains False
+            else:
+                flag_l_votes_agree = True
+                final_annotation = final_annotation_row[0]
+
+            n_task_annotations_row = get_total_annotations_for_task(cursor, task_id, obj_job, UserType.STEWARD)
+            n_task_annotations = int(n_task_annotations_row[0])
+
+            # main logic
+            if n_task_annotations > job_m:
+                print('ERROR: Should never have reached here')
+            elif n_task_annotations == job_m:
+                if flag_l_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # final_annotation is still 'undecided'.
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+            elif n_task_annotations >= job_l:  # votes >=l and < m
+                if flag_l_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # votes >= l but l don't agree out of them.
+                    # so wait for votes to become m but signal to assign that it should open this task for assignment again
+                    if task_done:
+                        # print('task was done. changing it back.')
+                        task_done = False
+            # else: votes < l, so just wait for enough votes.
+
+            # aggregate ends
+            # print('worker ', worker_id, ' updating task ', task_id, ' in tasks table and releasing lock')
+            cursor.execute(
+                "UPDATE " +
+                table_tasks +
+                " SET done = %s  WHERE _id = %s",
+                [task_done, task_id]
+            )
+            # we dont need to update pending_annotations because steward case only cares about id and done in the tasks table, other fields are solely for regular workers.
 
             return
 

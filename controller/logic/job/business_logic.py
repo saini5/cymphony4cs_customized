@@ -217,19 +217,7 @@ def work_3a_knlm(request: HttpRequest):
 def process_annotation_3a_kn(request: HttpRequest):
     """Process the annotation provided by worker and subsequently assign a new task to this worker"""
 
-    # retrieve ids from session variables
-    requester_id = request.session['current_job_requester']
-    project_id = request.session['current_job_project']
-    workflow_id = request.session['current_job_workflow']
-    run_id = request.session['current_job_run']
-    job_id = request.session['current_job']
-    obj_job: job_components.Job = job_dao.find_job(
-        job_id=job_id,
-        run_id=run_id,
-        workflow_id=workflow_id,
-        project_id=project_id,
-        user_id=requester_id
-    )
+    obj_job: job_components.Job = load_job_from_session(request)
     job_k = request.session['job_k']
     job_n = request.session['job_n']
     count_tasks = request.session['count_tasks']
@@ -338,19 +326,10 @@ def process_annotation_3a_kn(request: HttpRequest):
 def process_annotation_3a_knlm(request: HttpRequest):
     """Process the annotation provided by worker and subsequently assign a new task to this worker"""
 
-    # retrieve ids from session variables
-    requester_id = request.session['current_job_requester']
-    project_id = request.session['current_job_project']
-    workflow_id = request.session['current_job_workflow']
-    run_id = request.session['current_job_run']
-    job_id = request.session['current_job']
-    obj_job: job_components.Job = job_dao.find_job(
-        job_id=job_id,
-        run_id=run_id,
-        workflow_id=workflow_id,
-        project_id=project_id,
-        user_id=requester_id
-    )
+    user_type = getattr(request, 'user_type', UserType.REGULAR)
+
+    # Common setup code: load variables from session.
+    obj_job: job_components.Job = load_job_from_session(request)
     job_k = request.session['job_k']
     job_n = request.session['job_n']
     job_l = request.session['job_l']
@@ -360,29 +339,56 @@ def process_annotation_3a_knlm(request: HttpRequest):
     worker_id = request.user.id
     task_id = request.session['assigned_task_id']
     selected_choice = request.POST['choice']
-    # aggregate logic
-    job_helper_functions.aggregate_3a_knlm(
-        obj_job=obj_job,
-        job_k=job_k,
-        job_n=job_n,
-        job_m=job_m,
-        worker_id=worker_id,
-        task_id=task_id,
-        answer=selected_choice
-    )
-    # assign task to worker for this 3a_knm job
-    new_task_id = job_helper_functions.assign_3a_knm(
-        worker_id,
-        obj_job,
-        job_k,
-        job_n,
-        job_m,
-        task_annotation_time_limit,
-        count_tasks
-    )
+
+    # Aggregate annotations of this task depending on user type that is annotating.
+    if user_type == UserType.REGULAR:
+        # Regular-specific logic
+        job_helper_functions.aggregate_for_regular_workers_as_part_of_knlm(
+            obj_job=obj_job,
+            job_k=job_k,
+            job_n=job_n,
+            worker_id=worker_id,
+            task_id=task_id,
+            answer=selected_choice
+        )
+    elif user_type == UserType.STEWARD:
+        # Steward-specific logic
+        job_helper_functions.aggregate_for_steward_workers_as_part_of_knlm(
+            obj_job=obj_job,
+            job_l=job_l,
+            job_m=job_m,
+            worker_id=worker_id,
+            task_id=task_id,
+            answer=selected_choice
+        )
+    
+    # Assign task to worker for this 3a_knlm job depending on user type coming in.
+    new_task_id = None
+    if user_type == UserType.REGULAR:
+        # Regular-specific logic
+        new_task_id = job_helper_functions.assign_3a_kn(
+            worker_id,
+            obj_job,
+            job_k,
+            job_n,
+            task_annotation_time_limit,
+            count_tasks
+        )
+    elif user_type == UserType.STEWARD:
+        # Steward-specific logic
+        new_task_id = job_helper_functions.assign_3a_lm(
+            worker_id,
+            obj_job,
+            job_l,
+            job_m,
+            task_annotation_time_limit,
+            count_tasks
+        )
+    
+    # Common completion code here.
     if new_task_id > 0: # assign returned a task
         request.session['assigned_task_id'] = new_task_id
-        # get_annotation_page for this task of 3a_knm job
+        # get_annotation_page for this task of 3a_knlm job
         page_contents = job_helper_functions.get_annotation_page_3a_kn(
             obj_job=obj_job,
             task_id=new_task_id,
@@ -410,7 +416,7 @@ def process_annotation_3a_knlm(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/task_annotation_page_3a_knm.html')
+        template = loader.get_template('controller/job/task_annotation_page_3a_knlm.html')
         response = HttpResponse(template.render(context, request))
         return response
     elif new_task_id == 0:
@@ -425,7 +431,7 @@ def process_annotation_3a_knlm(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/no_available_task_3a_knm.html')
+        template = loader.get_template('controller/job/no_available_task_3a_knlm.html')
         response = HttpResponse(template.render(context, request))
         return response
     else:  # new_task_id < 0:
@@ -664,4 +670,20 @@ def load_common_variables_for_assign_and_annotate(request: HttpRequest):
             request.session['job_m'] = int(value)
     count_tasks: int = job_dao.get_count_tasks(obj_job=obj_job)
     request.session['count_tasks'] = count_tasks
+    return obj_job
+
+def load_job_from_session(request: HttpRequest):
+    """Load job from session"""
+    requester_id = request.session['current_job_requester']
+    project_id = request.session['current_job_project']
+    workflow_id = request.session['current_job_workflow']
+    run_id = request.session['current_job_run']
+    job_id = request.session['current_job']
+    obj_job: job_components.Job = job_dao.find_job(
+        job_id=job_id,
+        run_id=run_id,
+        workflow_id=workflow_id,
+        project_id=project_id,
+        user_id=requester_id
+    )
     return obj_job
