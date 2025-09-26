@@ -301,7 +301,12 @@ def process_annotation_3a_kn(request: HttpRequest):
         if the job was completed already when you are trying to lock, return void there and then, 
             notify the worker of no more tasks accepted.
         """
-        obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=requester_id)
+        obj_run: run_components.Run = run_dao.find_run(
+            run_id=obj_job.run_id, 
+            workflow_id=obj_job.workflow_id, 
+            project_id=obj_job.project_id, 
+            user_id=obj_job.user_id
+        )
         if obj_run.type == settings.RUN_TYPES[2]:   # pipelined run
             pipelined_simulated_run_helper_functions.complete_processing_job_and_progress_dag(this_job=obj_job)
         else:
@@ -444,8 +449,14 @@ def process_annotation_3a_knlm(request: HttpRequest):
         if the job was completed already when you are trying to lock, return void there and then, 
             notify the worker of no more tasks accepted.
         """
-        obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=requester_id)
+        obj_run: run_components.Run = run_dao.find_run(
+            run_id=obj_job.run_id, 
+            workflow_id=obj_job.workflow_id, 
+            project_id=obj_job.project_id, 
+            user_id=obj_job.user_id
+        )
         if obj_run.type == settings.RUN_TYPES[2]:   # pipelined run
+            # TODO: Implement this if decide to support pipelined simulated runs for 3a_knlm jobs.
             pipelined_simulated_run_helper_functions.complete_processing_job_and_progress_dag(this_job=obj_job)
         else:
             # human operator just finished, do bookkeeping and mark complete; and progress dag
@@ -462,7 +473,7 @@ def process_annotation_3a_knlm(request: HttpRequest):
         if 'python' in request.headers.get('User-Agent'):
             return JsonResponse(context)
         # usual case: for requests via GUI
-        template = loader.get_template('controller/job/no_available_task_3a_knm.html')
+        template = loader.get_template('controller/job/no_available_task_3a_knlm.html')
         response = HttpResponse(template.render(context, request))
         return response
 

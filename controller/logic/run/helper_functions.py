@@ -531,7 +531,7 @@ def complete_processing_job_and_progress_dag(
         elif output_node.type == 'data:1':
             # aggregated annotations per tuple (C type) table
             aggregated_annotations_table_name = run_prefix_table_name + output_node.name
-    if this_job.name == settings.HUMAN_OPERATORS[0]:    # 3a_kn job
+    if this_job.name == settings.HUMAN_OPERATORS[0] or this_job.name == settings.HUMAN_OPERATORS[2]:    # 3a_kn or 3a_knlm job
         processed_3a_kn_part_2: bool = job_helper_functions.process_3a_kn_part_2(
             obj_job=this_job,
             annotations_per_tuple_per_worker_table_name=annotations_per_tuple_per_worker_table_name,
@@ -549,7 +549,7 @@ def complete_processing_job_and_progress_dag(
         )
         # This piece of code cannot be called twice, since there is only one collector process for amt annotations.
         # no need to check `if not processed_3a_amt_part_2` like in the case of 3a_kn above
-    # dump the output nodes of this just completed 3a_kn/3a_amt operator, to files in the run directory
+    # dump the output nodes of this just completed 3a_kn/3a_knlm/3a_amt operator, to files in the run directory
     dump_data_nodes(
         data_nodes=outgoing_nodes,
         run_prefix_table_name=run_prefix_table_name,
