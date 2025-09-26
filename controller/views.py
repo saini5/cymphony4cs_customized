@@ -80,9 +80,9 @@ def process(request):
         elif action == 'process_annotation':    # submitted an annotation
             return job_logic.process_annotation_3a_knlm(request)
         elif action == 'skip': # skip the current task
-            return job_logic.skip(request)
+            return job_logic.skip_3a_knlm(request)
         elif action == 'quit':  # quit working on this 3a_knlm job
-            return job_logic.quit(request)
+            return job_logic.quit_3a_knlm(request)
     elif action_category == 'simulated_run':    # handled separately at top level but uses "run" code wherever possible
         if action == 'index':   # list all simulated runs of a workflow
             return simulated_run_logic.index(request)

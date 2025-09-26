@@ -477,22 +477,11 @@ def process_annotation_3a_knlm(request: HttpRequest):
         response = HttpResponse(template.render(context, request))
         return response
 
-def quit(request: HttpRequest):
+def quit_3a_kn(request: HttpRequest):
     """Worker wants to quit annotating"""
 
     # retrieve ids from session variables
-    requester_id = request.session['current_job_requester']
-    project_id = request.session['current_job_project']
-    workflow_id = request.session['current_job_workflow']
-    run_id = request.session['current_job_run']
-    job_id = request.session['current_job']
-    obj_job: job_components.Job = job_dao.find_job(
-        job_id=job_id,
-        run_id=run_id,
-        workflow_id=workflow_id,
-        project_id=project_id,
-        user_id=requester_id
-    )
+    obj_job: job_components.Job = load_job_from_session(request)
     worker_id = request.user.id
     task_id = request.session['assigned_task_id']
     # reclaim task: update tasks and task assignments table
@@ -506,7 +495,38 @@ def quit(request: HttpRequest):
     if 'python' in request.headers.get('User-Agent'):
         return JsonResponse(context)
     # usual case: for requests via GUI
-    template = loader.get_template('controller/job/job_quitted.html')
+    template = loader.get_template('controller/job/job_quitted_3a_kn.html')
+    response = HttpResponse(template.render(context, request))
+    return response
+
+def quit_3a_knlm(request: HttpRequest):
+    """Worker wants to quit annotating"""
+
+    user_type = getattr(request, 'user_type', UserType.REGULAR)
+
+    # Common setup code: load variables from session.
+    obj_job: job_components.Job = load_job_from_session(request)
+    worker_id = request.user.id
+    task_id = request.session['assigned_task_id']
+
+    # Execute logic depending on user type that is annotating.
+    if user_type == UserType.REGULAR:
+        # reclaim task: update tasks and task assignments table
+        job_dao.skip_3a_kn(obj_job=obj_job, task_id=task_id, worker_id=worker_id)
+    elif user_type == UserType.STEWARD:
+        job_dao.skip_3a_lm(obj_job=obj_job, task_id=task_id, worker_id=worker_id)
+    
+    # Common completion code here.
+    # return 'successfully quit' screen
+    context = {
+        'section': 'worker',
+        'message': 'You pressed the quit button and have quit the job successfully.'
+    }
+    # for api requests such as by simulated workers
+    if 'python' in request.headers.get('User-Agent'):
+        return JsonResponse(context)
+    # usual case: for requests via GUI
+    template = loader.get_template('controller/job/job_quitted_3a_knlm.html')
     response = HttpResponse(template.render(context, request))
     return response
 
@@ -522,7 +542,7 @@ def skip(request: HttpRequest):
     task_annotation_time_limit = request.session['task_annotation_time_limit']
     worker_id = request.user.id
     task_id = request.session['assigned_task_id']
-    
+
     # reclaim task: update tasks and task assignments table
     job_dao.skip_3a_kn(obj_job=obj_job, task_id=task_id, worker_id=worker_id)
 
@@ -608,7 +628,7 @@ def skip_3a_knlm(request: HttpRequest):
     worker_id = request.user.id
     task_id = request.session['assigned_task_id']
 
-    # Aggregate annotations of this task depending on user type that is annotating.
+    # Execute logic depending on user type that is annotating.
     if user_type == UserType.REGULAR:
         # reclaim task: update tasks and task assignments table
         job_dao.skip_3a_kn(obj_job=obj_job, task_id=task_id, worker_id=worker_id)
