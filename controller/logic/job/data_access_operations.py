@@ -1402,6 +1402,48 @@ def skip_3a_kn(obj_job: job_components.Job, task_id: int, worker_id: int):
     finally:
         cursor.close()
 
+def skip_3a_lm(obj_job: job_components.Job, task_id: int, worker_id: int):
+    """The worker (annotator) wants to quit annotating"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_assignments = job_prefix_table_name + "assignments"
+        cursor.execute(
+            "SELECT _id, worker_id, status FROM " +
+            table_assignments +
+            " WHERE _id = %s and worker_id = %s and status = %s FOR UPDATE",
+            [
+                task_id,
+                worker_id,
+                settings.ASSIGNMENT_STATUS[0]       # 'PENDING_ANNOTATION'
+            ]
+        )
+        task_assignments = cursor.fetchall()
+        if not task_assignments or not task_assignments[0]:
+            # <_id, worker_id> not in pending status
+            # cannot be completed or unassigned since otherwise, this function call would not have been possible
+            # therefore, must be abandoned already
+            pass
+        elif len(task_assignments) > 1:
+            # <_id, worker_id> had multiple rows in assignments table that had status "pending_annotation"
+            raise ValueError(
+                '<_id, worker_id> had multiple rows in assignments table that had status "pending_annotation"',
+                (task_id, worker_id)
+            )
+        elif len(task_assignments) == 1:
+            # <_id, w_id> is in pending status
+            print('Voluntarily abandoning task ', task_id, ' for worker ', worker_id)
+            abandon_lm(cursor, obj_job, task_id, worker_id)
+
+        return
+    except ValueError as err:
+        print('Data access exception in skip_3a_lm')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+
 
 def abandon_tasks(obj_job: job_components.Job):
     """Find tasks to abandon, and then abandon them"""
@@ -1484,6 +1526,50 @@ def abandon(cursor, obj_job: job_components.Job, task_id: int, worker_id: int):
         table_tasks +
         " SET abandoned = %s, pending_annotations = %s, done = %s  WHERE _id = %s",
         [task_abandoned, task_pending_annotations, task_done, task_id]
+    )
+
+    return
+
+def abandon_lm(cursor, obj_job: job_components.Job, task_id: int, worker_id: int):
+    # 1. create table_tasks variable, and table_task_assignments variable.
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_tasks = job_prefix_table_name + "tasks"
+    table_assignments = job_prefix_table_name + "assignments"
+
+    # 2. select from p1_w1_A where task = task and worker = worker and job_id = job_id for update
+    cursor.execute("UPDATE " +
+                   table_assignments +
+                   " SET status = %s, abandoned_at = %s WHERE _id = %s AND worker_id = %s AND status = %s",
+                   [
+                       settings.ASSIGNMENT_STATUS[2],      # 'ABANDONED',
+                       datetime.utcnow().replace(tzinfo=pytz.UTC),
+                       task_id,
+                       worker_id,
+                       settings.ASSIGNMENT_STATUS[0]       # 'PENDING_ANNOTATION'
+                   ]
+    )
+    # 3. select from p1_w1_T where task = task and job = job for update
+    # Steward case only cares about _id and done in the tasks table, other fields are solely for regular workers.
+    cursor.execute(
+        "SELECT _id, done FROM " +
+        table_tasks +
+        " WHERE _id = %s FOR UPDATE",
+        [task_id]
+    )
+    task = cursor.fetchone()
+
+    # make task done to false if it was previously true
+    task_done = task[1]
+    if task_done:
+        print('task was done. changing it back, because now we abandoned this task')
+        task_done = False
+
+    # update the tasks table (and unlock it)
+    cursor.execute(
+        "UPDATE " +
+        table_tasks +
+        " SET done = %s  WHERE _id = %s",
+        [task_done, task_id]
     )
 
     return
