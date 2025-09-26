@@ -50,17 +50,30 @@ class Command(BaseCommand):
         import controller.logic.job.data_access_operations as job_dao
 
         while True:
-            print("Checking for abandoned tasks...")
+            print("Checking for abandoned tasks in currently running 3a_kn jobs...")
             # Find all 3a_kn jobs that are running
             list_3a_kn_jobs = job_dao.find_all_jobs(
                 job_type=settings.OPERATOR_TYPES[1], # 'human'
                 job_name=settings.HUMAN_OPERATORS[0], # '3a_kn
                 job_status=settings.JOB_STATUS[1]  # 'RUNNING'
             )
-
-            # For each running job, call abandon_tasks()
+            # For each running job, call abandon_tasks_3a_kn()
             for job in list_3a_kn_jobs:
                 print(f"Checking job {job.id}...")
-                job_dao.abandon_tasks(obj_job=job)
-            print('Finished checking for abandoned tasks.')
+                job_dao.abandon_tasks_3a_kn(obj_job=job)
+            print('Finished checking for abandoned tasks in 3a_kn jobs.')
+
+            print("Checking for abandoned tasks in currently running 3a_knlm jobs...")
+            # Find all 3a_knlm jobs that are running
+            list_3a_knlm_jobs = job_dao.find_all_jobs(
+                job_type=settings.OPERATOR_TYPES[1], # 'human'
+                job_name=settings.HUMAN_OPERATORS[2], # '3a_knlm
+                job_status=settings.JOB_STATUS[1]  # 'RUNNING'
+            )
+            # For each running job, call abandon_tasks_3a_knlm()
+            for job in list_3a_knlm_jobs:
+                print(f"Checking job {job.id}...")
+                job_dao.abandon_tasks_3a_knlm(obj_job=job)
+            print('Finished checking for abandoned tasks in 3a_knlm jobs.')
+            
             time.sleep(self.interval)

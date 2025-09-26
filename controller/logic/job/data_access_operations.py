@@ -1445,7 +1445,7 @@ def skip_3a_lm(obj_job: job_components.Job, task_id: int, worker_id: int):
         cursor.close()
 
 
-def abandon_tasks(obj_job: job_components.Job):
+def abandon_tasks_3a_kn(obj_job: job_components.Job):
     """Find tasks to abandon, and then abandon them"""
     cursor = connection.cursor()
     try:
@@ -1479,6 +1479,54 @@ def abandon_tasks(obj_job: job_components.Job):
 
     except ValueError as err:
         print('Data access exception in abandon_tasks')
+        print(err.args)
+
+    finally:
+        cursor.close()
+
+def abandon_tasks_3a_knlm(obj_job: job_components.Job):
+    """Find tasks to abandon, and then abandon them, for 3a_knlm jobs"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_tasks = job_prefix_table_name + "tasks"
+        table_assignments = job_prefix_table_name + "assignments"
+
+        # TODO: atomic maybe not needed since I am already doing A before T
+
+        # 1. select from p1_w1_A where status = pending and timeout_threshold_at < now() for update
+        cursor.execute(f"""
+            SELECT A._id, A.worker_id, AG.name as worker_type
+            FROM {table_assignments} A
+            INNER JOIN auth_user_groups AUG ON A.worker_id = AUG.user_id
+            INNER JOIN auth_group AG ON AUG.group_id = AG.id
+            WHERE A.status = %s AND A.timeout_threshold_at < %s 
+            FOR UPDATE
+            """,
+            [
+                settings.ASSIGNMENT_STATUS[0],  # 'PENDING_ANNOTATION'
+                datetime.utcnow().replace(tzinfo=pytz.UTC)
+            ]
+        )
+        task_assignments = cursor.fetchall()
+
+        # 2. for each entry in result set:
+        for task_assignment in task_assignments:
+            task_id = task_assignment[0]
+            worker_id = task_assignment[1]
+            worker_type = task_assignment[2]
+            print(f'Abandoning task {task_id} for worker {worker_id} (type: {worker_type})')
+            
+            # Use appropriate abandon function based on worker type
+            if worker_type == UserType.STEWARD.value:
+                abandon_lm(cursor, obj_job, task_id, worker_id)
+            elif worker_type == UserType.REGULAR.value:
+                abandon(cursor, obj_job, task_id, worker_id)
+
+        return
+
+    except ValueError as err:
+        print('Data access exception in abandon_tasks_3a_knlm')
         print(err.args)
 
     finally:
@@ -1559,6 +1607,15 @@ def abandon_lm(cursor, obj_job: job_components.Job, task_id: int, worker_id: int
     task = cursor.fetchone()
 
     # make task done to false if it was previously true
+    """TODO: 
+    Can be a fundamental problem if :
+    If 2 regulars, and 1 steward has the annotation page, where k=2 and l=2,
+    So done = True because of the 2 regular assignments.
+    If one regular skips, then no problem making done = False.
+    If one steward skips, then done will be made False according to this function.
+    So 1 other regular or steward can get an assignment, which is not right.
+    But we will mostly not run into this problem because generally l will be 1.
+    """
     task_done = task[1]
     if task_done:
         print('task was done. changing it back, because now we abandoned this task')
