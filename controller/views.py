@@ -67,9 +67,9 @@ def process(request):
         elif action == 'process_annotation':    # submitted an annotation
             return job_logic.process_annotation_3a_kn(request)
         elif action == 'skip': # skip the current task
-            return job_logic.skip(request)
+            return job_logic.skip_3a_kn(request)
         elif action == 'quit':  # quit working on this 3a_kn job
-            return job_logic.quit(request)
+            return job_logic.quit_3a_kn(request)
     elif action_category == 'job_3a_knlm':    # worker interactions with 3a_knlm human jobs
         # Add user type as a request attribute for use in business logic
         request.user_type = UserType.from_user_id(request.user.id)

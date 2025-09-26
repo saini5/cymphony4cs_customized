@@ -531,7 +531,7 @@ def quit_3a_knlm(request: HttpRequest):
     return response
 
 
-def skip(request: HttpRequest):
+def skip_3a_kn(request: HttpRequest):
     """Worker wants to skip annotating"""
 
     # retrieve ids from session variables
