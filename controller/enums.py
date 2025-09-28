@@ -3,7 +3,7 @@ from enum import Enum
 class UserType(Enum):
     """Enum for different user types in the system"""
     STEWARD = "steward"
-    REGULAR = "regular"
+    REGULAR = "user"
     
     @classmethod
     def from_user_id(cls, user_id: int) -> 'UserType':

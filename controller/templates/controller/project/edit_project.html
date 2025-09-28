@@ -10,7 +10,7 @@
         <input type="text" id="pname" name="pname" value="{{ obj_project.name }}">
         <br>
         <label for="pdesc">Description: </label><br>
-        <input type="text" id="pdesc" name="pdesc" value= "{{ obj_project.description }}">
+        <textarea id="pdesc" name="pdesc" rows="4" cols="50" placeholder="Enter description here" style="resize: both; min-width: 200px; min-height: 80px;">{{ obj_project.description }}</textarea>
         <br><br>
         <input type="submit" value="Submit">
     </form>
