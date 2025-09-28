@@ -346,6 +346,53 @@ def progress_dag(
                 # in short, 3a_kn was processed like it was an automatic operator
                 # progress dag forward
                 explore_dag = True
+        elif node.name == settings.HUMAN_OPERATORS[2]:    # "3a_knlm"
+            # collect info for processing this operator
+            information: dict = run_helper_functions.extract_dag_data_for_processing_3a_kn_job(
+                incoming_nodes=incoming_nodes, outgoing_nodes=outgoing_nodes,
+                run_prefix_table_name=run_prefix_table_name, run_dir_path=run_dir_path, obj_run=obj_run
+            )
+            # pass this info to an internal procedure
+            submitted: bool = job_helper_functions.process_3a_kn(
+                data_table_name=information.get('data_table_name'),
+                instructions_file_path=information.get('instructions_file_path'),
+                layout_file_path=information.get('layout_file_path'),
+                configuration=information.get('parameters'),
+                obj_job=obj_job,
+                annotations_per_tuple_per_worker_table_name=information.get(
+                    'annotations_per_tuple_per_worker_table_name'),
+                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name')
+            )
+            if submitted:   # job submitted to cymphony dashboard
+                # if run is a simulation run, simulate workers on this 3a_knlm job
+                # these workers will take the job to completion which will then progress dag forward
+                if obj_run.type == settings.RUN_TYPES[0]:  # run is of type simulation
+                    # 1. load job specific simulation params into job_simulation_params
+                    # overall parameters for simulating job, specified by the requester
+                    job_simulation_params: dict = simulated_run_dao.load_job_simulation_parameters(obj_job=obj_job)
+                    # 2. prepare empty tables for information of simulation of workers at the overall & individual level
+                    # parameters corresponding to overall simulation of workers
+                    simulated_run_dao.create_table_parameters_simulation_workers_job(obj_job=obj_job)
+                    # statistics corresponding to overall simulation of workers
+                    simulated_run_dao.create_table_statistics_simulation_workers_job(obj_job=obj_job)
+                    # parameters corresponding to each individual worker hitting the job
+                    simulated_run_dao.create_table_parameters_workers_job(obj_job=obj_job)
+                    # statistics corresponding to each simulated worker hitting the job
+                    simulated_run_dao.create_table_statistics_workers_job(obj_job=obj_job)
+                    # 3. the size (rows) of data input to this job, required in the offloaded worker procedure
+                    # will be used for simulating accuracy
+                    size_data_job = simulated_run_dao.get_size_data(data_table_name=information.get('data_table_name'))
+                    # 4. offload to procedure (it will generate workers and hit cymphony)
+                    # TODO: yet to verify for 3a_knlm
+                    x = threading.Thread(target=simulate_workers_on_job, args=(job_simulation_params, obj_job, size_data_job))
+                    x.start()
+                # do not progress dag yourself, workers (human or synthetic) will make that happen
+                explore_dag = False
+            else:
+                # input data was empty, so job wasn't submitted to dashboard, and 3a_knlm has been processed to completion
+                # in short, 3a_knlm was processed like it was an automatic operator
+                # progress dag forward
+                explore_dag = True
         elif node.name == settings.HUMAN_OPERATORS[1]:  # "3a_amt"
             # load amt credentials
             encrypted_run_amt_credentials: dict = run_dao.load_run_amt_credentials(obj_run=obj_run)
@@ -531,7 +578,7 @@ def complete_processing_job_and_progress_dag(
         elif output_node.type == 'data:1':
             # aggregated annotations per tuple (C type) table
             aggregated_annotations_table_name = run_prefix_table_name + output_node.name
-    if this_job.name == settings.HUMAN_OPERATORS[0]:    # 3a_kn job
+    if this_job.name == settings.HUMAN_OPERATORS[0] or this_job.name == settings.HUMAN_OPERATORS[2]:    # 3a_kn or 3a_knlm job
         processed_3a_kn_part_2: bool = job_helper_functions.process_3a_kn_part_2(
             obj_job=this_job,
             annotations_per_tuple_per_worker_table_name=annotations_per_tuple_per_worker_table_name,
@@ -549,7 +596,7 @@ def complete_processing_job_and_progress_dag(
         )
         # This piece of code cannot be called twice, since there is only one collector process for amt annotations.
         # no need to check `if not processed_3a_amt_part_2` like in the case of 3a_kn above
-    # dump the output nodes of this just completed 3a_kn/3a_amt operator, to files in the run directory
+    # dump the output nodes of this just completed 3a_kn/3a_knlm/3a_amt operator, to files in the run directory
     dump_data_nodes(
         data_nodes=outgoing_nodes,
         run_prefix_table_name=run_prefix_table_name,

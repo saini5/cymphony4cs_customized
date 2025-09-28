@@ -10,7 +10,7 @@
         <input type="text" id="wname" name="wname" value="{{ obj_workflow.name }}">
         <br>
         <label for="wdesc">Description: </label><br>
-        <input type="text" id="wdesc" name="wdesc" value= "{{ obj_workflow.description }}">
+        <textarea id="wdesc" name="wdesc" rows="4" cols="50" placeholder="Enter description here" style="resize: both; min-width: 200px; min-height: 80px;">{{ obj_workflow.description }}</textarea>
         <br><br>
         <input type="submit" value="Submit">
     </form>

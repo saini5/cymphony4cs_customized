@@ -173,7 +173,7 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 # Workflow parsing and execution
 
-BLACKBOX_OPERATORS = ['read_table', '3a_kn', 'write_table', 'sample_random', 'exec_sql', '3a_amt']
+BLACKBOX_OPERATORS = ['read_table', '3a_kn', 'write_table', 'sample_random', 'exec_sql', '3a_amt', '3a_knlm']
 
 WORKFLOW_FILE_ENCODING = 'utf8'
 
@@ -207,7 +207,7 @@ RUN_STATUS = ['IDLE', 'RUNNING', 'COMPLETED']
 
 OPERATOR_TYPES = ['automatic', 'human']
 
-HUMAN_OPERATORS = ['3a_kn', '3a_amt']
+HUMAN_OPERATORS = ['3a_kn', '3a_amt', '3a_knlm']
 
 AUTOMATIC_OPERATORS = ['read_table', 'sample_random', 'exec_sql', 'write_table']
 

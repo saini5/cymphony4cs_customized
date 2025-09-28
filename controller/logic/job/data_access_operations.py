@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.conf import settings
 
 import controller.logic.job.components as job_components
-from controller.logic.common_data_access_operations import dict_fetchall, dict_fetchone
+from controller.logic.common_data_access_operations import dict_fetchall, dict_fetchone, is_steward
 from controller.logic.common_logic_operations import get_job_prefix_table_name
 
 from pathlib import Path
@@ -11,6 +11,9 @@ from datetime import datetime, timedelta
 import pytz, psycopg2, time, csv, random
 
 import time
+
+from controller.enums import UserType
+
 
 def find_all_jobs(job_name: str, job_type: str, job_status: str):
     """Return all jobs from the db with the name, type, status"""
@@ -343,6 +346,7 @@ def do_bookkeeping_3a_kn(
         # create p1_w1_task_assignments table
         table_assignments = job_prefix_table_name + "assignments"
         cursor.callproc('create_table_assignments', [table_assignments])
+        cursor.execute("CREATE INDEX " + table_assignments + "_worker_id ON " + table_assignments + " (worker_id)")
 
         # 2. create output B and C tables at the run level
         # create p1_w1_task_outputs table
@@ -580,6 +584,56 @@ def assign_3a_kn(worker_id: int, obj_job: job_components.Job, job_k: int, job_n:
         # break
 
 
+def assign_3a_lm(worker_id: int, obj_job: job_components.Job, job_l: int, job_m: int, task_annotation_time_limit: int):
+    """Assign task to worker"""
+    cursor = connection.cursor()
+    try:
+        with transaction.atomic():
+            task = None
+            task = get_and_lock_task_of_job_for_worker(cursor=cursor, worker_id=worker_id, obj_job=obj_job)
+            if not task:
+                # worker did not get any candidate tasks despite some label aggregations remaining'
+                # either all tasks were done, or all tasks had been annotated by this worker or a combination of the previous two
+                # or some tasks had been locked by other workers (for assign or submit annotation) so this worker skipped over them
+                print('return No available tasks for you')
+                return 0
+
+            # For the steward, I am only concerned about the task id and the done status in the task table
+            task_id = task[0]
+            task_done = task[4]
+
+            # assign t to w
+            # print('worker ', worker_id, ' getting assignment of ', task_id, ' in assignments table')
+            add_assignment_for_task_in_assign(cursor=cursor, task_id=task_id, obj_job=obj_job, worker_id=worker_id, annotation_time_limit=task_annotation_time_limit)
+
+            #  Since it is a steward, we don't change these values since they are relevant for regular workers.
+            task_total_assigned = task[1]
+            task_pending_annotations = task[3] 
+            task_abandoned = task[2]
+            
+            # Instead of having and comparing fields like total_assigned and abandoned for steward workers, we check based on the number of active assignments by stewards in assignments table.
+            task_active_assignments_by_stewards = get_active_assignments_by_stewards(cursor=cursor, task_id=task_id, obj_job=obj_job)
+            # assignments in progress for this task, by stewards
+            if task_active_assignments_by_stewards >= job_l:
+                task_done = True
+
+            # this will unlock the task as well
+            # print('worker ', worker_id,
+            #       ' updating task stats', task_id, ' in tasks table and hence, releasing lock on task')
+            update_tasks_for_task_in_assign(cursor=cursor, obj_job=obj_job, task_id=task_id, task_total_assigned=task_total_assigned, task_pending_annotations=task_pending_annotations, task_done=task_done)
+
+            return task_id
+
+    except ValueError as err:
+        print('Data access exception in assign_3a_knm')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+        # break
+
+
 def get_and_lock_task_of_job_for_worker(
         cursor,
         worker_id: int,
@@ -595,6 +649,7 @@ def get_and_lock_task_of_job_for_worker(
     # print('worker ', worker_id, ' querying tasks not annotated by him which are not done yet')
     cursor.execute(
         "SELECT _id, total_assigned, abandoned, pending_annotations, done, date_creation FROM " +
+        # "SELECT * FROM " +
         table_tasks +
         " WHERE done = %s AND _id NOT IN " +
         "(SELECT _id FROM " +
@@ -693,6 +748,75 @@ def add_assignment_for_task_in_assign(
         ]
     )
     return
+
+
+def get_qualifying_annotation_for_task(cursor, task_id: int, obj_job: job_components.Job, worker_type: UserType, threshold: int):
+    """Get qualifying annotation for a task filtered by worker type (steward or regular)"""
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_outputs = job_prefix_table_name + "outputs"
+    
+    worker_type_name = worker_type.value
+    
+    cursor.execute(f"""
+        SELECT VOTES_PER_ANNOTATION.annotation 
+        FROM ( 
+            SELECT TASK_ANNOTATIONS.annotation, count(*) AS n_votes 
+            FROM ( 
+                SELECT O._id, O.worker_id, O.annotation 
+                FROM {table_outputs} O
+                INNER JOIN auth_user_groups AUG ON O.worker_id = AUG.user_id
+                INNER JOIN auth_group AG ON AUG.group_id = AG.id
+                WHERE O._id = %s 
+                AND AG.name = %s
+            ) AS TASK_ANNOTATIONS 
+            GROUP BY TASK_ANNOTATIONS.annotation 
+        ) AS VOTES_PER_ANNOTATION 
+        WHERE VOTES_PER_ANNOTATION.n_votes >= %s
+        """,
+        [task_id, worker_type_name, threshold]
+    )
+    return cursor.fetchone()
+
+def get_total_annotations_for_task(cursor, task_id: int, obj_job: job_components.Job, worker_type: UserType):
+    """Get total annotations for a task filtered by worker type (steward or regular)"""
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_outputs = job_prefix_table_name + "outputs"
+    
+    worker_type_name = worker_type.value
+    
+    cursor.execute(f"""
+        SELECT COUNT(*) AS total_annotations
+        FROM {table_outputs} O
+        INNER JOIN auth_user_groups AUG ON O.worker_id = AUG.user_id
+        INNER JOIN auth_group AG ON AUG.group_id = AG.id
+        WHERE O._id = %s 
+        AND AG.name = %s
+        """,
+        [task_id, worker_type_name]
+    )
+    return cursor.fetchone()
+
+def get_active_assignments_by_stewards(cursor, task_id: int, obj_job: job_components.Job):
+    """Get active assignments (pending or completed) for this task, by stewards"""
+    
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_assignments = job_prefix_table_name + "assignments"
+    
+    steward_group_name = UserType.STEWARD.value
+    
+    cursor.execute(f"""
+        SELECT COUNT(*) AS active_assignments
+        FROM {table_assignments} A
+        INNER JOIN auth_user_groups AUG ON A.worker_id = AUG.user_id
+        INNER JOIN auth_group AG ON AUG.group_id = AG.id
+        WHERE A._id = %s 
+        AND AG.name = %s
+        AND (A.status = %s OR A.status = %s)
+        """,
+        [task_id, steward_group_name, settings.ASSIGNMENT_STATUS[0], settings.ASSIGNMENT_STATUS[1]]
+    )
+    active_assignments_by_stewards = cursor.fetchone()[0]
+    return active_assignments_by_stewards
 
 
 def update_tasks_for_task_in_assign(cursor, obj_job: job_components.Job, task_id: int, task_total_assigned: int, task_pending_annotations:int, task_done: bool):
@@ -817,7 +941,7 @@ def update_assignment_for_task_in_aggregate(obj_job: job_components.Job, task_id
         cursor.close()
 
 
-def bookkeeping_and_aggregate(obj_job: job_components.Job, task_id: int, worker_id: int, job_k: int, job_n: int, answer: str):
+def bookkeeping_and_aggregate_3a_kn(obj_job: job_components.Job, task_id: int, worker_id: int, job_k: int, job_n: int, answer: str):
     """Aggregate task's annotations"""
     cursor = connection.cursor()
     try:
@@ -961,7 +1085,7 @@ def bookkeeping_and_aggregate(obj_job: job_components.Job, task_id: int, worker_
                 "UPDATE " +
                 table_tasks +
                 " SET pending_annotations = %s, done = %s  WHERE _id = %s",
-                [task[3] - 1, task_done, task[0]]
+                [task[3] - 1, task_done, task_id]
             )
 
             return
@@ -975,6 +1099,175 @@ def bookkeeping_and_aggregate(obj_job: job_components.Job, task_id: int, worker_
         cursor.close()
         # break
 
+def bookkeeping_and_aggregate_for_regular_workers(obj_job: job_components.Job, task_id: int, worker_id: int, job_k: int, job_n: int, answer: str):
+    """Aggregate task's annotations for regular workers"""
+    cursor = connection.cursor()
+    try:
+        with transaction.atomic():
+
+            job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+            table_tasks = job_prefix_table_name + "tasks"
+            table_outputs = job_prefix_table_name + "outputs"
+
+            # print('worker ', worker_id, ' fetching task', task_id, ' in lock from tasks table')
+            cursor.execute(
+                "SELECT _id, total_assigned, abandoned, pending_annotations, done FROM " +
+                table_tasks +
+                " WHERE _id = %s FOR UPDATE",
+                [task_id]
+            )
+            task = cursor.fetchone()
+
+            # print('worker ', worker_id, ' inserting to outputs within task ', task_id, ' lock')
+            # Push annotation to p1_w1_task_outputs (O)
+            cursor.execute(
+                "INSERT into " +
+                table_outputs +
+                " (_id, annotation, worker_id) VALUES (%s, %s, %s)",
+                [task_id, answer, worker_id]
+            )
+
+            # aggregate start
+            task_id = task[0]
+            task_done = task[4]
+
+            flag_k_votes_agree = False  # if k votes agree out of n
+            final_annotation = settings.DEFAULT_AGGREGATION_LABEL  # 'undecided'
+            final_annotation_row = get_qualifying_annotation_for_task(cursor, task_id, obj_job, UserType.REGULAR, job_k)
+            if not final_annotation_row:
+                pass    # flag_k_votes_agree remains False
+            else:
+                flag_k_votes_agree = True
+                final_annotation = final_annotation_row[0]
+
+            n_task_annotations_row = get_total_annotations_for_task(cursor, task_id, obj_job, UserType.REGULAR)
+            n_task_annotations = int(n_task_annotations_row[0])
+
+            # main logic
+            if n_task_annotations > job_n:
+                print('ERROR: Should never have reached here')
+            elif n_task_annotations == job_n:
+                if flag_k_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # final_annotation is still 'undecided'.
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+            elif n_task_annotations >= job_k:  # votes >=k and < n
+                if flag_k_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # votes >= k but k don't agree out of them.
+                    # so wait for votes to become n but signal to assign that it should open this task for assignment again
+                    if task_done:
+                        # print('task was done. changing it back.')
+                        task_done = False
+            # else: votes < k, so just wait for enough votes.
+
+            # aggregate ends
+            # print('worker ', worker_id, ' updating task ', task_id, ' in tasks table and releasing lock')
+            cursor.execute(
+                "UPDATE " +
+                table_tasks +
+                " SET pending_annotations = %s, done = %s  WHERE _id = %s",
+                [task[3] - 1, task_done, task_id]
+            )
+
+            return
+
+    except ValueError as err:
+        print('Data access exception in bookkeeping and aggregate')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+        # break
+
+def bookkeeping_and_aggregate_for_steward_workers(obj_job: job_components.Job, task_id: int, worker_id: int, job_l: int, job_m: int, answer: str):
+    """Aggregate task's annotations for steward workers"""
+    cursor = connection.cursor()
+    try:
+        with transaction.atomic():
+
+            job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+            table_tasks = job_prefix_table_name + "tasks"
+            table_outputs = job_prefix_table_name + "outputs"
+
+            # print('worker ', worker_id, ' fetching task', task_id, ' in lock from tasks table')
+            # Steward case only cares about _id and done in the tasks table, other fields are solely for regular workers.
+            cursor.execute(
+                "SELECT _id, done FROM " +
+                table_tasks +
+                " WHERE _id = %s FOR UPDATE",
+                [task_id]
+            )
+            task = cursor.fetchone()
+
+            # print('worker ', worker_id, ' inserting to outputs within task ', task_id, ' lock')
+            # Push annotation to p1_w1_task_outputs (O)
+            cursor.execute(
+                "INSERT into " +
+                table_outputs +
+                " (_id, annotation, worker_id) VALUES (%s, %s, %s)",
+                [task_id, answer, worker_id]
+            )
+
+            # aggregate start
+            task_id = task[0]
+            task_done = task[1]
+
+            flag_l_votes_agree = False  # if l votes agree out of m
+            final_annotation = settings.DEFAULT_AGGREGATION_LABEL  # 'undecided'
+            final_annotation_row = get_qualifying_annotation_for_task(cursor, task_id, obj_job, UserType.STEWARD, job_l)
+            if not final_annotation_row:
+                pass    # flag_l_votes_agree remains False
+            else:
+                flag_l_votes_agree = True
+                final_annotation = final_annotation_row[0]
+
+            n_task_annotations_row = get_total_annotations_for_task(cursor, task_id, obj_job, UserType.STEWARD)
+            n_task_annotations = int(n_task_annotations_row[0])
+
+            # main logic
+            if n_task_annotations > job_m:
+                print('ERROR: Should never have reached here')
+            elif n_task_annotations == job_m:
+                if flag_l_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # final_annotation is still 'undecided'.
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+            elif n_task_annotations >= job_l:  # votes >=l and < m
+                if flag_l_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                else:
+                    # votes >= l but l don't agree out of them.
+                    # so wait for votes to become m but signal to assign that it should open this task for assignment again
+                    if task_done:
+                        # print('task was done. changing it back.')
+                        task_done = False
+            # else: votes < l, so just wait for enough votes.
+
+            # aggregate ends
+            # print('worker ', worker_id, ' updating task ', task_id, ' in tasks table and releasing lock')
+            cursor.execute(
+                "UPDATE " +
+                table_tasks +
+                " SET done = %s  WHERE _id = %s",
+                [task_done, task_id]
+            )
+            # we dont need to update pending_annotations because steward case only cares about id and done in the tasks table, other fields are solely for regular workers.
+
+            return
+
+    except ValueError as err:
+        print('Data access exception in bookkeeping and aggregate')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+        # break
 
 def aggregate(cursor, task_id, final_annotation, obj_job):
     """Store the aggregated label against the task in final_labels table"""
@@ -1110,8 +1403,50 @@ def skip_3a_kn(obj_job: job_components.Job, task_id: int, worker_id: int):
     finally:
         cursor.close()
 
+def skip_3a_lm(obj_job: job_components.Job, task_id: int, worker_id: int):
+    """The worker (annotator) wants to quit annotating"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_assignments = job_prefix_table_name + "assignments"
+        cursor.execute(
+            "SELECT _id, worker_id, status FROM " +
+            table_assignments +
+            " WHERE _id = %s and worker_id = %s and status = %s FOR UPDATE",
+            [
+                task_id,
+                worker_id,
+                settings.ASSIGNMENT_STATUS[0]       # 'PENDING_ANNOTATION'
+            ]
+        )
+        task_assignments = cursor.fetchall()
+        if not task_assignments or not task_assignments[0]:
+            # <_id, worker_id> not in pending status
+            # cannot be completed or unassigned since otherwise, this function call would not have been possible
+            # therefore, must be abandoned already
+            pass
+        elif len(task_assignments) > 1:
+            # <_id, worker_id> had multiple rows in assignments table that had status "pending_annotation"
+            raise ValueError(
+                '<_id, worker_id> had multiple rows in assignments table that had status "pending_annotation"',
+                (task_id, worker_id)
+            )
+        elif len(task_assignments) == 1:
+            # <_id, w_id> is in pending status
+            print('Voluntarily abandoning task ', task_id, ' for worker ', worker_id)
+            abandon_lm(cursor, obj_job, task_id, worker_id)
 
-def abandon_tasks(obj_job: job_components.Job):
+        return
+    except ValueError as err:
+        print('Data access exception in skip_3a_lm')
+        print(err.args)
+        raise
+
+    finally:
+        cursor.close()
+
+
+def abandon_tasks_3a_kn(obj_job: job_components.Job):
     """Find tasks to abandon, and then abandon them"""
     cursor = connection.cursor()
     try:
@@ -1145,6 +1480,54 @@ def abandon_tasks(obj_job: job_components.Job):
 
     except ValueError as err:
         print('Data access exception in abandon_tasks')
+        print(err.args)
+
+    finally:
+        cursor.close()
+
+def abandon_tasks_3a_knlm(obj_job: job_components.Job):
+    """Find tasks to abandon, and then abandon them, for 3a_knlm jobs"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_tasks = job_prefix_table_name + "tasks"
+        table_assignments = job_prefix_table_name + "assignments"
+
+        # TODO: atomic maybe not needed since I am already doing A before T
+
+        # 1. select from p1_w1_A where status = pending and timeout_threshold_at < now() for update
+        cursor.execute(f"""
+            SELECT A._id, A.worker_id, AG.name as worker_type
+            FROM {table_assignments} A
+            INNER JOIN auth_user_groups AUG ON A.worker_id = AUG.user_id
+            INNER JOIN auth_group AG ON AUG.group_id = AG.id
+            WHERE A.status = %s AND A.timeout_threshold_at < %s 
+            FOR UPDATE
+            """,
+            [
+                settings.ASSIGNMENT_STATUS[0],  # 'PENDING_ANNOTATION'
+                datetime.utcnow().replace(tzinfo=pytz.UTC)
+            ]
+        )
+        task_assignments = cursor.fetchall()
+
+        # 2. for each entry in result set:
+        for task_assignment in task_assignments:
+            task_id = task_assignment[0]
+            worker_id = task_assignment[1]
+            worker_type = task_assignment[2]
+            print(f'Abandoning task {task_id} for worker {worker_id} (type: {worker_type})')
+            
+            # Use appropriate abandon function based on worker type
+            if worker_type == UserType.STEWARD.value:
+                abandon_lm(cursor, obj_job, task_id, worker_id)
+            elif worker_type == UserType.REGULAR.value:
+                abandon(cursor, obj_job, task_id, worker_id)
+
+        return
+
+    except ValueError as err:
+        print('Data access exception in abandon_tasks_3a_knlm')
         print(err.args)
 
     finally:
@@ -1192,6 +1575,59 @@ def abandon(cursor, obj_job: job_components.Job, task_id: int, worker_id: int):
         table_tasks +
         " SET abandoned = %s, pending_annotations = %s, done = %s  WHERE _id = %s",
         [task_abandoned, task_pending_annotations, task_done, task_id]
+    )
+
+    return
+
+def abandon_lm(cursor, obj_job: job_components.Job, task_id: int, worker_id: int):
+    # 1. create table_tasks variable, and table_task_assignments variable.
+    job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+    table_tasks = job_prefix_table_name + "tasks"
+    table_assignments = job_prefix_table_name + "assignments"
+
+    # 2. select from p1_w1_A where task = task and worker = worker and job_id = job_id for update
+    cursor.execute("UPDATE " +
+                   table_assignments +
+                   " SET status = %s, abandoned_at = %s WHERE _id = %s AND worker_id = %s AND status = %s",
+                   [
+                       settings.ASSIGNMENT_STATUS[2],      # 'ABANDONED',
+                       datetime.utcnow().replace(tzinfo=pytz.UTC),
+                       task_id,
+                       worker_id,
+                       settings.ASSIGNMENT_STATUS[0]       # 'PENDING_ANNOTATION'
+                   ]
+    )
+    # 3. select from p1_w1_T where task = task and job = job for update
+    # Steward case only cares about _id and done in the tasks table, other fields are solely for regular workers.
+    cursor.execute(
+        "SELECT _id, done FROM " +
+        table_tasks +
+        " WHERE _id = %s FOR UPDATE",
+        [task_id]
+    )
+    task = cursor.fetchone()
+
+    # make task done to false if it was previously true
+    """TODO: 
+    Can be a fundamental problem if :
+    If 2 regulars, and 1 steward has the annotation page, where k=2 and l=2,
+    So done = True because of the 2 regular assignments.
+    If one regular skips, then no problem making done = False.
+    If one steward skips, then done will be made False according to this function.
+    So 1 other regular or steward can get an assignment, which is not right.
+    But we will mostly not run into this problem because generally l will be 1.
+    """
+    task_done = task[1]
+    if task_done:
+        print('task was done. changing it back, because now we abandoned this task')
+        task_done = False
+
+    # update the tasks table (and unlock it)
+    cursor.execute(
+        "UPDATE " +
+        table_tasks +
+        " SET done = %s  WHERE _id = %s",
+        [task_done, task_id]
     )
 
     return
@@ -1391,9 +1827,11 @@ def do_bookkeeping_3a_kn_part_2(
             # )
 
             table_tasks = job_prefix_table_name + "tasks"
+            table_assignments = job_prefix_table_name + "assignments"
             # delete indexes from job level tasks table and outputs table
-            cursor.execute("DROP INDEX " + table_tasks + "_id_done")
-            cursor.execute("DROP INDEX " + table_outputs + "_worker_id")
+            cursor.execute("DROP INDEX IF EXISTS " + table_tasks + "_id_done")
+            cursor.execute("DROP INDEX IF EXISTS " + table_assignments + "_worker_id")
+            cursor.execute("DROP INDEX IF EXISTS " + table_outputs + "_worker_id")
 
             # 3. update job in all_jobs (and release lock)
             obj_job.status = settings.JOB_STATUS[2]     # "COMPLETED"

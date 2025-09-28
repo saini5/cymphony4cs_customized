@@ -166,6 +166,17 @@ def assign_3a_kn(worker_id: int, obj_job: job_components.Job, job_k: int, job_n:
         return -1
 
 
+def assign_3a_lm(worker_id: int, obj_job: job_components.Job, job_l: int, job_m: int, task_annotation_time_limit: int, count_tasks: int):
+    """Assign task to worker"""
+    all_tasks_have_aggregated_labels: bool = job_dao.check_all_tasks_have_aggregated_labels(obj_job, count_tasks)
+    if not all_tasks_have_aggregated_labels:
+        # possibility of task being assigned to worker
+        return job_dao.assign_3a_lm(worker_id, obj_job, job_l, job_m, task_annotation_time_limit)
+    else:
+        # job is no more collecting annotations for any tasks
+        return -1
+
+
 def get_annotation_page_3a_kn(
         obj_job: job_components.Job,
         task_id: int,
@@ -231,12 +242,56 @@ def aggregate_3a_kn(obj_job: job_components.Job, job_k: int, job_n: int, worker_
         return
 
     # putting to outputs and aggregating
-    job_dao.bookkeeping_and_aggregate(
+    job_dao.bookkeeping_and_aggregate_3a_kn(
         obj_job=obj_job,
         task_id=task_id,
         worker_id=worker_id,
         job_k=job_k,
         job_n=job_n,
+        answer=answer
+    )
+
+def aggregate_for_regular_workers_as_part_of_knlm(obj_job: job_components.Job, job_k: int, job_n: int, worker_id: int, task_id: int, answer: str):
+    """Aggregate task annotations for regular workers as part of 3a_knlm job"""
+    # updating assignment to completed
+    already_abandoned = job_dao.update_assignment_for_task_in_aggregate(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id
+    )
+
+    if already_abandoned:
+        return
+
+    # putting to outputs and aggregating
+    job_dao.bookkeeping_and_aggregate_for_regular_workers(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id,
+        job_k=job_k,
+        job_n=job_n,
+        answer=answer
+    )
+
+def aggregate_for_steward_workers_as_part_of_knlm(obj_job: job_components.Job, job_l: int, job_m: int, worker_id: int, task_id: int, answer: str):
+    """Aggregate task annotations for steward workers as part of 3a_knlm job"""
+    # updating assignment to completed
+    already_abandoned = job_dao.update_assignment_for_task_in_aggregate(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id
+    )
+
+    if already_abandoned:
+        return
+
+    # putting to outputs and aggregating
+    job_dao.bookkeeping_and_aggregate_for_steward_workers(
+        obj_job=obj_job,
+        task_id=task_id,
+        worker_id=worker_id,
+        job_l=job_l,
+        job_m=job_m,
         answer=answer
     )
 

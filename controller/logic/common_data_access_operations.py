@@ -1,3 +1,12 @@
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+def is_steward(user_id: int):
+    """Check if the user is a steward"""
+    user = User.objects.get(id=user_id)
+    print(f"User id {user_id} got mapped to user {user} with groups {user.groups.all()}")
+    return user.groups.filter(name='steward').exists()
 
 
 def dict_fetchall(cursor):
