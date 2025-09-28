@@ -346,6 +346,7 @@ def do_bookkeeping_3a_kn(
         # create p1_w1_task_assignments table
         table_assignments = job_prefix_table_name + "assignments"
         cursor.callproc('create_table_assignments', [table_assignments])
+        cursor.execute("CREATE INDEX " + table_assignments + "_worker_id ON " + table_assignments + " (worker_id)")
 
         # 2. create output B and C tables at the run level
         # create p1_w1_task_outputs table
@@ -1826,9 +1827,11 @@ def do_bookkeeping_3a_kn_part_2(
             # )
 
             table_tasks = job_prefix_table_name + "tasks"
+            table_assignments = job_prefix_table_name + "assignments"
             # delete indexes from job level tasks table and outputs table
-            cursor.execute("DROP INDEX " + table_tasks + "_id_done")
-            cursor.execute("DROP INDEX " + table_outputs + "_worker_id")
+            cursor.execute("DROP INDEX IF EXISTS " + table_tasks + "_id_done")
+            cursor.execute("DROP INDEX IF EXISTS " + table_assignments + "_worker_id")
+            cursor.execute("DROP INDEX IF EXISTS " + table_outputs + "_worker_id")
 
             # 3. update job in all_jobs (and release lock)
             obj_job.status = settings.JOB_STATUS[2]     # "COMPLETED"
