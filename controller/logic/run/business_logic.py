@@ -67,6 +67,7 @@ def create(request: HttpRequest):
     elif request.method == 'POST':  # create run based on form response
         run_id = request.GET.get('rid', -1)
         if run_id == -1:  # no run id specified
+            notification_url = request.POST.get('notification_url', None)
             # encapsulate the run details
             obj_run = run_components.Run(
                 workflow_id=workflow_id,
@@ -75,7 +76,8 @@ def create(request: HttpRequest):
                 run_name=request.POST['rname'],
                 run_description=request.POST['rdesc'],
                 run_type=run_type,   # didn't need to supply it as a run is "human" by default already
-                run_status=settings.RUN_STATUS[0]   # "IDLE"
+                run_status=settings.RUN_STATUS[0],   # "IDLE",
+                notification_url=notification_url
             )
 
             # 1. store entry in db
@@ -169,6 +171,8 @@ def create(request: HttpRequest):
                 response = HttpResponse(template.render(context, request))
                 return response
             else:   # no 3a_amt job present, progress dag without any interruptions
+                obj_run.status = settings.RUN_STATUS[1]     # "RUNNING"
+                run_dao.edit_run(obj_run=obj_run)
                 # 8. pass over operator nodes again in execution order, this time to execute
                 # this time we have the node vs job mapping as well
                 explore_dag: bool = run_helper_functions.progress_dag(
