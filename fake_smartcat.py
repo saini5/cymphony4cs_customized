@@ -1,3 +1,5 @@
+# Environment installed via conda create -n dummy-smartcat python=3.12.3 flask=3.1.2 requests=2.32.5 urllib3=2.5.0
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
