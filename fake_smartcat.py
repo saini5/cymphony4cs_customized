@@ -1,4 +1,5 @@
 # Environment installed via conda create -n dummy-smartcat python=3.12.3 flask=3.1.2 requests=2.32.5 urllib3=2.5.0
+# Create Smartcat User in Cymphony via python manage.py manage_roles_and_users --create_user "smartcat" "smartcat_password"
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -90,40 +91,31 @@ class CymphonyClient:
             response.raise_for_status()
             return response.json()
 
-    def create_run(self, project_id, workflow_id, run_name, run_description, callback_url, callback_secret=None):
+    def create_run(self, project_id, workflow_id, run_name, run_description, notification_url):
         endpoint = f'/controller/?category=run&action=create&pid={project_id}&wid={workflow_id}'
-        callback_info = {
-            'url': callback_url,
-            'headers': {'X-Smartcat-Id': 'smartcat-instance-1'}, # Example custom header
-            'secret': callback_secret
-        }
-        data = {
+
+        # --- Current simplified approach for Cymphony backend ---
+        # Cymphony's /controller/ endpoint currently expects form-urlencoded data.
+        # The `notification_url` is passed as a simple POST parameter.
+        data_for_cymphony = {
             'rname': run_name,
             'rdesc': run_description,
-            'callback': callback_info # This is how an API-specific endpoint might receive it
+            'notification_url': notification_url,
         }
-        # Note: Your /controller/ endpoint currently expects form-urlencoded data for 'rname'/'rdesc',
-        # and has no explicit 'callback' JSON field. This needs to be adapted for your Cymphony API design.
-        # For now, I'll simulate a POST with form data for rname/rdesc and pass callback info separately
-        # as if it were handled by a dedicated API view (as we discussed previously).
-        # THIS PART ASSUMES A DEDICATED API VIEW HANDLES THE JSON PAYLOAD WITH CALLBACK INFO.
-        # If /controller/ needs to be used, its view function would need to be modified.
-        
-        # Simulating the API endpoint expecting JSON for run creation + callback
-        # If your /controller/ endpoint doesn't accept JSON directly for these,
-        # you'll need a dedicated API endpoint in Cymphony (as discussed earlier with api_views.py)
-        # For this script, let's assume such an API endpoint exists, or modify the /controller/ one.
-        
-        # For the purpose of this script, let's assume Cymphony's /controller/ endpoint has been adapted
-        # to correctly parse a JSON body for 'rname', 'rdesc', and 'callback'.
-        # If not, the Cymphony /controller/ view needs to be updated.
-        
-        # If your Cymphony endpoint expects form data:
-        # data_for_form = {'rname': run_name, 'rdesc': run_description}
-        # # You'd need a separate mechanism to pass callback_url, etc., if not via JSON body.
-        # # For simplicity in this fake client, we'll assume a JSON-capable endpoint.
-        
-        response = self._post(endpoint, data) # Assuming Cymphony endpoint can parse 'callback' from JSON
+
+        # --- Future/more secure approach (commented out for now) ---
+        # callback_info = {
+        #     'url': notification_url,
+        #     'headers': {'X-Smartcat-Id': 'smartcat-instance-1'}, # Example custom header
+        #     'secret': callback_secret # When Cymphony supports webhook secrets
+        # }
+        # data_with_callback_json = {
+        #     'rname': run_name,
+        #     'rdesc': run_description,
+        #     'callback': callback_info # For a dedicated API endpoint accepting JSON
+        # }
+
+        response = self._post(endpoint, data=data_for_cymphony, is_json=False)
         return response['run_id']
 
     def get_run_status(self, project_id, workflow_id, run_id):
@@ -148,7 +140,7 @@ def smartcat_webhook_receiver():
         payload = request.get_json()
         logger.info(f"Received webhook: {json.dumps(payload)}")
         
-        # Optional: Verify webhook signature
+        # --- Optional: Verify webhook signature (commented out for now) ---
         # signature = request.headers.get('X-Webhook-Signature')
         # if signature and WEBHOOK_SECRET:
         #     import hmac, hashlib
@@ -164,7 +156,7 @@ def smartcat_webhook_receiver():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def run_flask_app():
-    app.run(port=5000, debug=False) # debug=False for production use
+    app.run(port=5000, debug=True) # debug=False for production use
 
 # --- Main Simulation Logic ---
 def simulate_bulk_curation():
@@ -211,11 +203,14 @@ def simulate_bulk_curation():
         # The /controller/ endpoint currently expects form-urlencoded data, not JSON for the 'callback' field.
         # If Cymphony has a dedicated API endpoint that accepts JSON with 'callback' info (as discussed previously, e.g., in api_views.py),
         # this part of the client needs to call THAT endpoint.
-        # For simplicity, I am assuming the '/controller/?category=run&action=create' endpoint in Cymphony has been updated
+        # For simplicity, I will need to assume the '/controller/?category=run&action=create' endpoint in Cymphony has been updated
         # to handle a JSON body that includes a 'callback' field.
-        logger.info(f"Creating run '{run_name}' with callback URL: {SMARTCAT_WEBHOOK_URL}...")
+        # For the purpose of this script, I'm simplifying to match Cymphony's current POST parameter expectation.
+        # When Cymphony's API is updated to accept JSON with a 'callback' object (including secrets),
+        # this client's create_run call should be updated to use that.
+        logger.info(f"Creating run '{run_name}' with notification URL: {SMARTCAT_WEBHOOK_URL}...")
         run_id = client.create_run(project_id, workflow_id, run_name, run_description, 
-                                    SMARTCAT_WEBHOOK_URL, WEBHOOK_SECRET)
+                                    SMARTCAT_WEBHOOK_URL)
         logger.info(f"Run created with ID: {run_id}. Awaiting completion notification.")
 
         # 4. SC calls CN to check status (polling) OR waits for callback
