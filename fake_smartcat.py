@@ -197,10 +197,7 @@ def simulate_bulk_curation():
 
         # 3. SC sends over workflow and creates a run
         # Create dummy workflow files first
-        workflow_dir = Path("temp_workflow_files")
-        workflow_dir.mkdir(exist_ok=True)
-        (workflow_dir / "workflow.cy").write_text("dummy workflow content") # TODO: Needs to change.
-        (workflow_dir / "data.csv").write_text("col1,col2\n1,2\n3,4")
+        workflow_dir = Path("fake-smartcat-exps/bulk-curation/test-workflow")
         
         workflow_name = f"Bulk_Workflow_{int(time.time())}"
         workflow_description = "Workflow for bulk curation"
@@ -238,6 +235,7 @@ def simulate_bulk_curation():
         max_poll_time = 3600 * 24 # seconds (24 hours)
         start_time = time.time()
         run_completed_via_poll = False
+        list_file_names = []
         
         while time.time() - start_time < max_poll_time:
             if received_callbacks:
@@ -247,12 +245,14 @@ def simulate_bulk_curation():
                 if latest_callback.get('run_id') == run_id and latest_callback.get('status') == 'COMPLETED':
                     logger.info(f"Run {run_id} completed via webhook notification.")
                     run_completed_via_poll = False # Indicate completion via callback
+                    list_file_names = latest_callback.get('list_file_names')
                     break
             
             logger.info(f"Polling Cymphony for run {run_id} status...")
             status_response = client.get_run_status(project_id, workflow_id, run_id)
             current_status = status_response.get('status') # Assuming 'status' in response
             logger.info(f"Run {run_id} current status: {current_status}")
+            list_file_names = status_response.get('list_file_names')
 
             if current_status == 'COMPLETED': # Assuming Cymphony returns 'COMPLETED'
                 logger.info(f"Run {run_id} completed via polling.")
@@ -266,15 +266,16 @@ def simulate_bulk_curation():
 
         # 5. If run completed (either via poll or callback), download results
         if run_completed_via_poll or received_callbacks:
-            logger.info(f"Run {run_id} is complete. Requesting to download final_labels.csv...")# TODO: There needs to be a Cymphony API to download all files.
+            logger.info(f"Run {run_id} is complete. Requesting to download files...")
             try:
-                # TODO: Download all files instead.
-                # Assuming 'final_labels.csv' is a common output file
-                file_content = client.download_file(project_id, workflow_id, run_id, 'final_labels.csv')
-                output_filename = f"smartcat_run_{run_id}_final_labels.csv"
-                with open(output_filename, 'wb') as f:
-                    f.write(file_content)
-                logger.info(f"Successfully downloaded results to {output_filename}")
+                # Download all files listed in list_file_names
+                for file_name in list_file_names:
+                    file_content = client.download_file(project_id, workflow_id, run_id, file_name)
+                    output_filename = f"smartcat_run_{run_id}_{file_name}"
+                    with open(output_filename, 'wb') as f:
+                        f.write(file_content)
+                    logger.info(f"Successfully downloaded {file_name} to {output_filename}")
+                logger.info(f"Successfully downloaded all files!")
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to download results file: {e}")
         else:
@@ -285,10 +286,11 @@ def simulate_bulk_curation():
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
     finally:
-        # TODO: Maybe remove this?
-        if workflow_dir and workflow_dir.exists():
-            shutil.rmtree(workflow_dir)
-            logger.info("Cleaned up temporary workflow files.")
+        pass
+        # if workflow_dir and workflow_dir.exists():
+        #     shutil.rmtree(workflow_dir)
+        #     logger.info("Cleaned up temporary workflow files.")
+
 
 if __name__ == "__main__":
     # Start the Flask app in a separate thread
