@@ -40,7 +40,7 @@ class CymphonyClient:
         self.session.mount("https://", adapter)
         self.session.headers.update({'User-Agent': 'FakeSmartcat-python-requests/1.0'}) # TODO: Cymphony currently returns json response only if 'python' in user-agent. How can I change it so that it returns json response whenever the request is a web api request and not from the browser.
 
-    def _post(self, endpoint, data, is_json=True):
+    def _post(self, endpoint, data, is_json=False):
         url = f"{self.base_url}{endpoint}"
         logger.info(f"POSTing to {url} with data: {data}")
         if is_json:
@@ -158,6 +158,7 @@ class CymphonyClient:
 # --- Fake Smartcat Webhook Receiver ---
 app = Flask(__name__)
 received_callbacks = [] # Store received callbacks
+callback_received_event = threading.Event() # Event to signal main thread
 
 @app.route('/webhook', methods=['POST'])
 def smartcat_webhook_receiver():
@@ -175,6 +176,7 @@ def smartcat_webhook_receiver():
         #         return jsonify({"status": "error", "message": "Invalid signature"}), 401
         
         received_callbacks.append(payload)
+        callback_received_event.set() # Signal that a callback was received
         return jsonify({"status": "received", "message": "Callback processed"}), 200
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
@@ -218,6 +220,7 @@ def simulate_bulk_curation():
         logger.info(f"Uploading workflow files to workflow {workflow_id}...")
         client.upload_workflow_file(project_id, workflow_id, workflow_dir / "workflow.cy")
         client.upload_workflow_file(project_id, workflow_id, workflow_dir / "data.csv")
+        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "instructions.html")
         logger.info("Workflow files uploaded.")
 
         run_name = f"Bulk_Curation_Run_{int(time.time())}"
@@ -245,49 +248,54 @@ def simulate_bulk_curation():
         max_poll_time = 3600 * 24 # seconds (24 hours)
         start_time = time.time()
         run_completed_via_poll = False
-        list_file_names = []
+        list_file_names = None
         
         while time.time() - start_time < max_poll_time:
-            if received_callbacks:
+            # Wait for either a callback or the poll interval to pass
+            if callback_received_event.wait(timeout=poll_interval):
                 logger.info("Callback received! Processing callback and skipping polling.")
+                callback_received_event.clear() # Reset the event for the next potential callback
                 # Process the callback directly
-                latest_callback = received_callbacks[-1]
+                latest_callback = received_callbacks.pop() # Process latest callback
                 if latest_callback.get('run_id') == run_id and latest_callback.get('status') == 'COMPLETED':
                     logger.info(f"Run {run_id} completed via webhook notification.")
                     run_completed_via_poll = False # Indicate completion via callback
                     list_file_names = latest_callback.get('list_file_names')
                     break
-            
-            logger.info(f"Polling Cymphony for run {run_id} status...")
-            status_response = client.get_run_status(project_id, workflow_id, run_id)
-            current_status = status_response.get('status') # Assuming 'status' in response
-            logger.info(f"Run {run_id} current status: {current_status}")
-            list_file_names = status_response.get('list_file_names')
+                else:
+                    logger.info("Received a callback, but it's not for completion of this run. Continuing...")
 
-            if current_status == 'COMPLETED': # Assuming Cymphony returns 'COMPLETED'
-                logger.info(f"Run {run_id} completed via polling.")
-                run_completed_via_poll = True
-                break
+            else: # Timeout occurred, no callback received, proceed with polling
+                logger.info(f"Polling Cymphony for run {run_id} status...")
+                status_response = client.get_run_status(project_id, workflow_id, run_id)
+                current_status = status_response.get('status') # Assuming 'status' in response
+                logger.info(f"Run {run_id} current status: {current_status}")
+                list_file_names = status_response.get('list_file_names') # Assuming list of files in response
+
+                if current_status == 'COMPLETED': # Assuming Cymphony returns 'COMPLETED'
+                    logger.info(f"Run {run_id} completed via polling.")
+                    run_completed_via_poll = True
+                    break
             
-            time.sleep(poll_interval)
         else:
             logger.warning(f"Run {run_id} did not complete within {max_poll_time} seconds. Timeout.")
             return
 
         # 5. If run completed (either via poll or callback), download results
-        if run_completed_via_poll or received_callbacks:
+        if run_completed_via_poll or (received_callbacks and any(cb.get('run_id') == run_id and cb.get('status') == 'COMPLETED' for cb in received_callbacks)):
             logger.info(f"Run {run_id} is complete. Requesting to download files...")
-            try:
-                # Download all files listed in list_file_names
+            if list_file_names:
                 for file_name in list_file_names:
-                    file_content = client.download_file(project_id, workflow_id, run_id, file_name)
-                    output_filename = f"smartcat_run_{run_id}_{file_name}"
-                    with open(output_filename, 'wb') as f:
-                        f.write(file_content)
-                    logger.info(f"Successfully downloaded {file_name} to {output_filename}")
-                logger.info(f"Successfully downloaded all files!")
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Failed to download results file: {e}")
+                    try:
+                        file_content = client.download_file(project_id, workflow_id, run_id, file_name)
+                        output_filename = f"smartcat_run_{run_id}_{file_name}"
+                        with open(output_filename, 'wb') as f:
+                            f.write(file_content)
+                        logger.info(f"Successfully downloaded {file_name} to {output_filename}")
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Failed to download file {file_name}: {e}")
+            else:
+                logger.warning("No file names received to download.")
         else:
             logger.warning("Run did not complete, skipping file download.")
 
