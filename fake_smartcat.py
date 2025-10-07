@@ -11,13 +11,14 @@ import json
 import logging
 from pathlib import Path
 import shutil
+from django.urls import reverse
 
 # --- Configuration ---
 CYMPHONY_URL = 'http://127.0.0.1:8000' # Your Cymphony instance URL
 SMARTCAT_WEBHOOK_URL = 'http://127.0.0.1:5000/webhook' # Fake Smartcat's webhook receiver URL
-SMARTCAT_USERNAME = 'smartcat_admin' # Cymphony user for Smartcat
+SMARTCAT_USERNAME = 'smartcat' # Cymphony user for Smartcat
 SMARTCAT_PASSWORD = 'smartcat_password' # Password for Smartcat user
-WEBHOOK_SECRET = 'your_webhook_secret' # Shared secret for webhook signature verification
+# WEBHOOK_SECRET = 'mys_webhook_secret' # Shared secret for webhook signature verification
 
 # --- Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,7 +39,7 @@ class CymphonyClient:
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
-        self.session.headers.update({'User-Agent': 'FakeSmartcat/1.0'})
+        self.session.headers.update({'User-Agent': 'FakeSmartcat-python-requests/1.0'}) # TODO: Cymphony currently returns json response only if 'python' in user-agent. How can I change it so that it returns json response whenever the request is a web api request and not from the browser.
 
     def _post(self, endpoint, data, is_json=True):
         url = f"{self.base_url}{endpoint}"
@@ -58,16 +59,31 @@ class CymphonyClient:
         return response.json()
 
     def login(self, username, password):
-        login_url = f"{self.base_url}/account/login/"
+        login_url = f"{self.base_url}/login/"
         # Django's LoginView expects form data, not JSON
+        self.session.auth(username, password)
         response = self.session.post(login_url, data={'username': username, 'password': password})
         response.raise_for_status()
+        # TODO: Check 
         if 'csrftoken' in self.session.cookies:
             self.session.headers.update({'X-CSRFToken': self.session.cookies['csrftoken']})
         logger.info(f"Logged in {username}. CSRF Token: {self.session.headers.get('X-CSRFToken')}")
-        # Check if login was successful (e.g., by redirect or content)
-        if '/account/dashboard' not in response.url:
+        login_response_url = response.url
+        print('Login response url: ', login_response_url)
+        login_page_url = self.base_url + reverse('account:login')
+        if login_response_url == login_page_url:
+            # login did not go through, so the response landed on the login page again
+            print('Request url: ', login_url)
+            print('Response resulting url: ', login_response_url)
+            print('Login page url: ', login_page_url)
+            print('Comparison: ', login_response_url == login_page_url)
             raise Exception("Login failed. Check username/password or Cymphony logs.")
+        
+        # Alternatively,Check if dashboard was reached
+        dashboard_page_url = self.base_url + reverse('account:dashboard')
+        print('Dashboard page url: ', dashboard_page_url)
+        # if 'dashboard' not in response.url:
+        #     raise Exception("Login failed. Check username/password or Cymphony logs.")
 
     def create_project(self, project_name, project_description):
         endpoint = '/controller/?category=project&action=create'
@@ -92,6 +108,7 @@ class CymphonyClient:
             return response.json()
 
     def create_run(self, project_id, workflow_id, run_name, run_description, notification_url):
+        """Create Cymphony based run."""
         endpoint = f'/controller/?category=run&action=create&pid={project_id}&wid={workflow_id}'
 
         # --- Current simplified approach for Cymphony backend ---
@@ -118,7 +135,7 @@ class CymphonyClient:
         response = self._post(endpoint, data=data_for_cymphony, is_json=False)
         return response['run_id']
 
-    def get_run_status(self, project_id, workflow_id, run_id):
+    def get_run_status(self, project_id, workflow_id, run_id):  # 6. Returns list_file_names and message TODO: Needs to return run_status as well along with some code perhaps.
         endpoint = f'/controller/?category=run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'
         return self._get(endpoint)
 
@@ -182,7 +199,7 @@ def simulate_bulk_curation():
         # Create dummy workflow files first
         workflow_dir = Path("temp_workflow_files")
         workflow_dir.mkdir(exist_ok=True)
-        (workflow_dir / "workflow.cy").write_text("dummy workflow content")
+        (workflow_dir / "workflow.cy").write_text("dummy workflow content") # TODO: Needs to change.
         (workflow_dir / "data.csv").write_text("col1,col2\n1,2\n3,4")
         
         workflow_name = f"Bulk_Workflow_{int(time.time())}"
@@ -203,9 +220,9 @@ def simulate_bulk_curation():
         # The /controller/ endpoint currently expects form-urlencoded data, not JSON for the 'callback' field.
         # If Cymphony has a dedicated API endpoint that accepts JSON with 'callback' info (as discussed previously, e.g., in api_views.py),
         # this part of the client needs to call THAT endpoint.
-        # For simplicity, I will need to assume the '/controller/?category=run&action=create' endpoint in Cymphony has been updated
+        # Alternatively, I can assume the '/controller/?category=run&action=create' endpoint in Cymphony has been updated
         # to handle a JSON body that includes a 'callback' field.
-        # For the purpose of this script, I'm simplifying to match Cymphony's current POST parameter expectation.
+        # For the purpose of this script, I'm simplifying by doing neither, so as to match Cymphony's current POST parameter expectation.
         # When Cymphony's API is updated to accept JSON with a 'callback' object (including secrets),
         # this client's create_run call should be updated to use that.
         logger.info(f"Creating run '{run_name}' with notification URL: {SMARTCAT_WEBHOOK_URL}...")
@@ -217,8 +234,8 @@ def simulate_bulk_curation():
         # For this simulation, we'll implement a polling mechanism with a timeout,
         # but prioritize the callback if received.
 
-        poll_interval = 5 # seconds
-        max_poll_time = 300 # seconds (5 minutes)
+        poll_interval = 60 * 5 # seconds (5 minutes)
+        max_poll_time = 3600 * 24 # seconds (24 hours)
         start_time = time.time()
         run_completed_via_poll = False
         
@@ -234,7 +251,7 @@ def simulate_bulk_curation():
             
             logger.info(f"Polling Cymphony for run {run_id} status...")
             status_response = client.get_run_status(project_id, workflow_id, run_id)
-            current_status = status_response.get('run_status') # Assuming 'run_status' in response
+            current_status = status_response.get('status') # Assuming 'status' in response
             logger.info(f"Run {run_id} current status: {current_status}")
 
             if current_status == 'COMPLETED': # Assuming Cymphony returns 'COMPLETED'
@@ -249,8 +266,9 @@ def simulate_bulk_curation():
 
         # 5. If run completed (either via poll or callback), download results
         if run_completed_via_poll or received_callbacks:
-            logger.info(f"Run {run_id} is complete. Requesting to download final_labels.csv...")
+            logger.info(f"Run {run_id} is complete. Requesting to download final_labels.csv...")# TODO: There needs to be a Cymphony API to download all files.
             try:
+                # TODO: Download all files instead.
                 # Assuming 'final_labels.csv' is a common output file
                 file_content = client.download_file(project_id, workflow_id, run_id, 'final_labels.csv')
                 output_filename = f"smartcat_run_{run_id}_final_labels.csv"
@@ -267,6 +285,7 @@ def simulate_bulk_curation():
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
     finally:
+        # TODO: Maybe remove this?
         if workflow_dir and workflow_dir.exists():
             shutil.rmtree(workflow_dir)
             logger.info("Cleaned up temporary workflow files.")
