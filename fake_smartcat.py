@@ -256,7 +256,7 @@ def simulate_bulk_curation():
                 logger.info("Callback received! Processing callback and skipping polling.")
                 callback_received_event.clear() # Reset the event for the next potential callback
                 # Process the callback directly
-                latest_callback = received_callbacks.pop() # Process latest callback
+                latest_callback = received_callbacks[-1] # Process latest callback
                 if latest_callback.get('run_id') == run_id and latest_callback.get('status') == 'COMPLETED':
                     logger.info(f"Run {run_id} completed via webhook notification.")
                     run_completed_via_poll = False # Indicate completion via callback
