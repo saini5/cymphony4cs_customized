@@ -11,7 +11,6 @@ import json
 import logging
 from pathlib import Path
 import shutil
-from django.urls import reverse
 
 # --- Configuration ---
 CYMPHONY_URL = 'http://127.0.0.1:8000' # Your Cymphony instance URL
@@ -60,30 +59,39 @@ class CymphonyClient:
 
     def login(self, username, password):
         login_url = f"{self.base_url}/login/"
-        # Django's LoginView expects form data, not JSON
-        self.session.auth(username, password)
-        response = self.session.post(login_url, data={'username': username, 'password': password})
-        response.raise_for_status()
-        # TODO: Check 
-        if 'csrftoken' in self.session.cookies:
-            self.session.headers.update({'X-CSRFToken': self.session.cookies['csrftoken']})
-        logger.info(f"Logged in {username}. CSRF Token: {self.session.headers.get('X-CSRFToken')}")
-        login_response_url = response.url
-        print('Login response url: ', login_response_url)
-        login_page_url = self.base_url + reverse('account:login')
-        if login_response_url == login_page_url:
-            # login did not go through, so the response landed on the login page again
-            print('Request url: ', login_url)
-            print('Response resulting url: ', login_response_url)
-            print('Login page url: ', login_page_url)
-            print('Comparison: ', login_response_url == login_page_url)
-            raise Exception("Login failed. Check username/password or Cymphony logs.")
         
-        # Alternatively,Check if dashboard was reached
-        dashboard_page_url = self.base_url + reverse('account:dashboard')
-        print('Dashboard page url: ', dashboard_page_url)
-        # if 'dashboard' not in response.url:
-        #     raise Exception("Login failed. Check username/password or Cymphony logs.")
+        # Step 1: GET the login page to obtain the CSRF token
+        logger.info(f"GETting login page to retrieve CSRF token from {login_url}")
+        get_response = self.session.get(login_url)
+        get_response.raise_for_status()
+        
+        # Extract CSRF token from cookies
+        csrftoken = self.session.cookies.get('csrftoken')
+        if not csrftoken:
+            raise Exception("CSRF token not found in login page cookies. Login page might have changed.")
+        self.session.headers.update({'X-CSRFToken': csrftoken})
+        
+        # Step 2: POST login credentials with the obtained CSRF token
+        logger.info(f"POSTing login credentials to {login_url}")
+        response = self.session.post(
+            login_url, 
+            data={
+                'username': username, 
+                'password': password,
+                'csrfmiddlewaretoken': csrftoken # Include the CSRF token in POST data
+            },
+            # auth=(username, password) # Basic Auth is typically for stateless APIs, not form logins
+                                        # Keep it commented for now as LoginView primarily relies on session + CSRF
+        )
+        response.raise_for_status()
+
+        # Check if login was successful by examining the redirect URL
+        # If redirected back to login URL, it's a failure.
+        if response.url == login_url:
+            logger.error(f"Login failed. Response URL: {response.url}")
+            raise Exception("Login failed. Check username/password or Cymphony logs.")
+
+        logger.info(f"Logged in {username}. CSRF Token: {self.session.headers.get('X-CSRFToken')}")
 
     def create_project(self, project_name, project_description):
         endpoint = '/controller/?category=project&action=create'
@@ -173,7 +181,9 @@ def smartcat_webhook_receiver():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def run_flask_app():
-    app.run(port=5000, debug=True) # debug=False for production use
+    # When running Flask in a separate thread, debug=True and use_reloader=True are problematic
+    # Disable debug and reloader for threaded execution
+    app.run(port=5000, debug=False, use_reloader=False)
 
 # --- Main Simulation Logic ---
 def simulate_bulk_curation():
