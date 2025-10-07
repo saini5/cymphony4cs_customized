@@ -161,7 +161,8 @@ def create(request: HttpRequest):
                     'run_name': obj_run.name,
                     'workflow_id': obj_run.workflow_id,
                     'project_id': obj_run.project_id,
-                    'flag_3a_amt': flag_3a_amt
+                    'flag_3a_amt': flag_3a_amt,
+                    'status': obj_run.status
                 }
                 # for api requests such as by external web client
                 if 'python' in request.headers.get('User-Agent'):
@@ -203,7 +204,8 @@ def create(request: HttpRequest):
                     'workflow_id': obj_run.workflow_id,
                     'project_id': obj_run.project_id,
                     'flag_3a_amt': flag_3a_amt,
-                    'message': message
+                    'message': message,
+                    'status': obj_run.status
                 }
                 # for api requests such as by external web client
                 if 'python' in request.headers.get('User-Agent'):
@@ -305,7 +307,8 @@ def create(request: HttpRequest):
                 'run_name': obj_run.name,
                 'workflow_id': obj_run.workflow_id,
                 'project_id': obj_run.project_id,
-                'message': message
+                'message': message,
+                'status': obj_run.status
             }
             # for api requests such as by external web client
             if 'python' in request.headers.get('User-Agent'):
@@ -352,7 +355,8 @@ def view(request:HttpRequest):
         'workflow_id': obj_run.workflow_id,
         'project_id': obj_run.project_id,
         'list_file_names': list_file_names,
-        'message': progress_message
+        'message': progress_message,
+        'status': obj_run.status
     }
     # for api requests such as by external web client
     if 'python' in request.headers.get('User-Agent'):

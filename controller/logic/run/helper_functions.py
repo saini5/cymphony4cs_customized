@@ -1180,7 +1180,4 @@ def send_completion_notification(obj_run: run_components.Run):
     except Exception as e:
         print(f"Error sending completion notification for run {obj_run.id} to {webhook_url}. Error: {e}")
         return False
-    obj_run.status = settings.RUN_STATUS[2]
-    obj_run.save()
-    response = requests.post(webhook_url, headers=headers, data=json_payload)
-    return response
+
