@@ -15,6 +15,9 @@ from collections import OrderedDict
 from cryptography.fernet import Fernet
 from pathlib import Path
 
+import io
+import zipfile
+
 
 def index(request: HttpRequest):
     """Return the run listing under this workflow and options to manipulate them"""
@@ -388,3 +391,31 @@ def download_file(request:HttpRequest):
     # response = FileResponse(open(file_path, 'rb'), as_attachment=True)
     return response
 
+
+def download_all_files(request:HttpRequest):
+    """Download all files pertaining to run as a ZIP archive"""
+    user_id, project_id, workflow_id, run_id = run_helper_functions.get_run_identifiers(request)
+    obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+
+    if not run_dir_path.is_dir():
+        return HttpResponse("Run directory not found!", status=404)
+
+    in_memory_zip = io.BytesIO()
+    zip_filename = f"run_{run_id}_files.zip"
+    files_found = False
+
+    with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file_path in run_dir_path.iterdir():
+            if file_path.is_file():
+                zf.write(file_path, arcname=file_path.name) # Add file to zip with its original name
+                files_found = True
+
+    if not files_found:
+        return HttpResponse("No files found in run directory!", status=404)
+
+    in_memory_zip.seek(0) # Rewind to the beginning of the stream
+    response = FileResponse(in_memory_zip, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+    return response
+    
