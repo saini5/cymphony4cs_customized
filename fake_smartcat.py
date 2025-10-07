@@ -135,7 +135,7 @@ class CymphonyClient:
         response = self._post(endpoint, data=data_for_cymphony, is_json=False)
         return response['run_id']
 
-    def get_run_status(self, project_id, workflow_id, run_id):  # 6. Returns list_file_names and message TODO: Needs to return run_status as well along with some code perhaps.
+    def get_run_status(self, project_id, workflow_id, run_id):
         endpoint = f'/controller/?category=run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'
         return self._get(endpoint)
 

@@ -1150,9 +1150,18 @@ def send_completion_notification(obj_run: run_components.Run):
     webhook_url = obj_run.notification_url
 
     # 1. Construct the payload
+    # Iterate on dir files
+    list_file_names = []
+    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+    if run_dir_path.is_dir():
+        for file_path in run_dir_path.iterdir():
+            if file_path.is_file():
+                # add this file name and its path (with download link)
+                list_file_names.append(file_path.name)
     payload = {
         'run_id': obj_run.id,
         'status': obj_run.status,
+        'list_file_names': list_file_names,
         'completed_at': timezone.now().isoformat()
     }
     # Convert the payload to JSON
