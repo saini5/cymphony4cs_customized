@@ -26,8 +26,10 @@ class Run:
             Type of run
         date_creation : datetime.datetime
             time of run creation
+        notification_url : str
+            URL to send notifications to
     """
-    def __init__(self, workflow_id, project_id, user_id, run_name, run_description, run_status=settings.RUN_STATUS[1], run_type=settings.RUN_TYPES[1], date_creation=timezone.now(), run_id=-1):
+    def __init__(self, workflow_id, project_id, user_id, run_name, run_description, run_status=settings.RUN_STATUS[1], run_type=settings.RUN_TYPES[1], date_creation=timezone.now(), run_id=-1, notification_url=None):
         """
             Constructs all the necessary attributes for the run object.
 
@@ -51,6 +53,8 @@ class Run:
                 Type of run
             date_creation : datetime.datetime (optional)
                 time of run creation
+            notification_url : str (optional)
+                URL to send notifications to
         """
         self.id = run_id
         self.workflow_id = workflow_id
@@ -61,10 +65,11 @@ class Run:
         self.status = run_status
         self.type = run_type
         self.date_creation = date_creation
+        self.notification_url = notification_url
 
     def __str__(self):
-        return 'Run({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8})'.format(
-            self.id, self.workflow_id, self.project_id, self.user_id, self.name, self.description, self.status, self.type, self.date_creation
+        return 'Run({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9})'.format(
+            self.id, self.workflow_id, self.project_id, self.user_id, self.name, self.description, self.status, self.type, self.date_creation, self.notification_url
         )
 
 

@@ -200,7 +200,8 @@ def create(request: HttpRequest):
                 'simulated_run_name': obj_simulated_run.name,
                 'workflow_id': obj_simulated_run.workflow_id,
                 'project_id': obj_simulated_run.project_id,
-                'job_info': job_info
+                'job_info': job_info,
+                'status': obj_simulated_run.status
             }
             if 'python' in request.headers.get('User-Agent'):
                 return JsonResponse(context_for_api)
@@ -313,7 +314,8 @@ def create(request: HttpRequest):
                 'simulated_run_name': obj_simulated_run.name,
                 'workflow_id': obj_simulated_run.workflow_id,
                 'project_id': obj_simulated_run.project_id,
-                'message': message
+                'message': message,
+                'status': obj_simulated_run.status
             }
             # for api requests such as by external web client
             if 'python' in request.headers.get('User-Agent'):
@@ -481,7 +483,8 @@ def view(request:HttpRequest):
         'workflow_id': obj_simulated_run.workflow_id,
         'project_id': obj_simulated_run.project_id,
         'list_file_names': list_file_names,
-        'message': progress_message
+        'message': progress_message,
+        'status': obj_simulated_run.status
     }
     # for api requests such as by external web client
     if 'python' in request.headers.get('User-Agent'):

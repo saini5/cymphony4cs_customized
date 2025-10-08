@@ -15,6 +15,9 @@ from collections import OrderedDict
 from cryptography.fernet import Fernet
 from pathlib import Path
 
+import io
+import zipfile
+
 
 def index(request: HttpRequest):
     """Return the run listing under this workflow and options to manipulate them"""
@@ -67,6 +70,7 @@ def create(request: HttpRequest):
     elif request.method == 'POST':  # create run based on form response
         run_id = request.GET.get('rid', -1)
         if run_id == -1:  # no run id specified
+            notification_url = request.POST.get('notification_url', None)
             # encapsulate the run details
             obj_run = run_components.Run(
                 workflow_id=workflow_id,
@@ -75,7 +79,8 @@ def create(request: HttpRequest):
                 run_name=request.POST['rname'],
                 run_description=request.POST['rdesc'],
                 run_type=run_type,   # didn't need to supply it as a run is "human" by default already
-                run_status=settings.RUN_STATUS[0]   # "IDLE"
+                run_status=settings.RUN_STATUS[0],   # "IDLE",
+                notification_url=notification_url
             )
 
             # 1. store entry in db
@@ -159,7 +164,8 @@ def create(request: HttpRequest):
                     'run_name': obj_run.name,
                     'workflow_id': obj_run.workflow_id,
                     'project_id': obj_run.project_id,
-                    'flag_3a_amt': flag_3a_amt
+                    'flag_3a_amt': flag_3a_amt,
+                    'status': obj_run.status
                 }
                 # for api requests such as by external web client
                 if 'python' in request.headers.get('User-Agent'):
@@ -169,6 +175,8 @@ def create(request: HttpRequest):
                 response = HttpResponse(template.render(context, request))
                 return response
             else:   # no 3a_amt job present, progress dag without any interruptions
+                obj_run.status = settings.RUN_STATUS[1]     # "RUNNING"
+                run_dao.edit_run(obj_run=obj_run)
                 # 8. pass over operator nodes again in execution order, this time to execute
                 # this time we have the node vs job mapping as well
                 explore_dag: bool = run_helper_functions.progress_dag(
@@ -199,7 +207,8 @@ def create(request: HttpRequest):
                     'workflow_id': obj_run.workflow_id,
                     'project_id': obj_run.project_id,
                     'flag_3a_amt': flag_3a_amt,
-                    'message': message
+                    'message': message,
+                    'status': obj_run.status
                 }
                 # for api requests such as by external web client
                 if 'python' in request.headers.get('User-Agent'):
@@ -301,7 +310,8 @@ def create(request: HttpRequest):
                 'run_name': obj_run.name,
                 'workflow_id': obj_run.workflow_id,
                 'project_id': obj_run.project_id,
-                'message': message
+                'message': message,
+                'status': obj_run.status
             }
             # for api requests such as by external web client
             if 'python' in request.headers.get('User-Agent'):
@@ -348,7 +358,8 @@ def view(request:HttpRequest):
         'workflow_id': obj_run.workflow_id,
         'project_id': obj_run.project_id,
         'list_file_names': list_file_names,
-        'message': progress_message
+        'message': progress_message,
+        'status': obj_run.status
     }
     # for api requests such as by external web client
     if 'python' in request.headers.get('User-Agent'):
@@ -380,3 +391,31 @@ def download_file(request:HttpRequest):
     # response = FileResponse(open(file_path, 'rb'), as_attachment=True)
     return response
 
+
+def download_all_files(request:HttpRequest):
+    """Download all files pertaining to run as a ZIP archive"""
+    user_id, project_id, workflow_id, run_id = run_helper_functions.get_run_identifiers(request)
+    obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+
+    if not run_dir_path.is_dir():
+        return HttpResponse("Run directory not found!", status=404)
+
+    in_memory_zip = io.BytesIO()
+    zip_filename = f"run_{run_id}_files.zip"
+    files_found = False
+
+    with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file_path in run_dir_path.iterdir():
+            if file_path.is_file():
+                zf.write(file_path, arcname=file_path.name) # Add file to zip with its original name
+                files_found = True
+
+    if not files_found:
+        return HttpResponse("No files found in run directory!", status=404)
+
+    in_memory_zip.seek(0) # Rewind to the beginning of the stream
+    response = FileResponse(in_memory_zip, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+    return response
+    

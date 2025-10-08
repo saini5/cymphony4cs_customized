@@ -19,7 +19,7 @@ def find_all_runs(workflow_id: int, project_id: int, user_id: int, run_type: str
         # get all runs for this user>project>workflow from the all_runs table
         table_all_runs = "all_runs"
         cursor.execute(
-            "SELECT r_id, w_id, u_id, p_id, r_name, r_desc, r_status, r_type, date_creation FROM " +
+            "SELECT r_id, w_id, u_id, p_id, r_name, r_desc, r_status, r_type, date_creation, notification_url FROM " +
             table_all_runs +
             " WHERE w_id = %s AND p_id = %s AND u_id = %s AND r_type = %s",
             [workflow_id, project_id, user_id, run_type]
@@ -35,7 +35,8 @@ def find_all_runs(workflow_id: int, project_id: int, user_id: int, run_type: str
                 run_description=row['r_desc'],
                 run_status = row['r_status'],
                 run_type=row['r_type'],
-                date_creation=row['date_creation']
+                date_creation=row['date_creation'],
+                notification_url=row['notification_url']
             )
             list_all_runs.append(obj_run)
         return list_all_runs
@@ -54,7 +55,7 @@ def find_run(run_id: int, workflow_id: int, project_id: int, user_id: int):
         # get the specific run for this user project's workflow from the all_runs table
         table_all_runs = "all_runs"
         cursor.execute(
-            "SELECT r_id, w_id, p_id, u_id, r_name, r_desc, r_status, r_type, date_creation FROM " +
+            "SELECT r_id, w_id, p_id, u_id, r_name, r_desc, r_status, r_type, date_creation, notification_url FROM " +
             table_all_runs +
             " WHERE r_id = %s AND w_id = %s AND p_id = %s AND u_id = %s",
             [run_id, workflow_id, project_id, user_id]
@@ -69,7 +70,8 @@ def find_run(run_id: int, workflow_id: int, project_id: int, user_id: int):
             run_description=run_row['r_desc'],
             run_status=run_row['r_status'],
             run_type=run_row['r_type'],
-            date_creation=run_row['date_creation']
+            date_creation=run_row['date_creation'],
+            notification_url=run_row['notification_url']
         )
         run = obj_run
         return run
@@ -90,7 +92,7 @@ def create_run(obj_run: run_components.Run):
         cursor.execute(
             "INSERT into " +
             table_all_runs +
-            " (w_id, p_id, u_id, r_name, r_desc, r_status, r_type, date_creation) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)" +
+            " (w_id, p_id, u_id, r_name, r_desc, r_status, r_type, date_creation, notification_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)" +
             " RETURNING r_id;",
             [
                 obj_run.workflow_id,
@@ -100,7 +102,8 @@ def create_run(obj_run: run_components.Run):
                 obj_run.description,
                 obj_run.status,
                 obj_run.type,
-                timezone.now()  # store this time of creation
+                timezone.now(),  # store this time of creation
+                obj_run.notification_url
             ]
         )
         run_id = cursor.fetchone()[0]
@@ -122,12 +125,13 @@ def edit_run(obj_run: run_components.Run):
             "UPDATE " +
             table_all_runs +
             " SET " +
-            "r_name = %s, r_desc = %s, r_status = %s" +
+            "r_name = %s, r_desc = %s, r_status = %s, notification_url = %s" +
             " WHERE u_id = %s AND p_id = %s AND w_id = %s AND r_id = %s",
             [
                 obj_run.name,
                 obj_run.description,
                 obj_run.status,
+                obj_run.notification_url,
                 obj_run.user_id,
                 obj_run.project_id,
                 obj_run.workflow_id,

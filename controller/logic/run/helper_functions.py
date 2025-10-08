@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
 
 import controller.logic.workflow.data_access_operations as workflow_dao
 import controller.logic.simulated_run.data_access_operations as simulated_run_dao
@@ -17,10 +18,12 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from collections import OrderedDict
 from pathlib import Path
+import requests
 from requests import Session
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import copy, threading, time, random, base64, boto3
+import json
 
 
 def get_execution_order(copy_dag: run_components.DiGraph):
@@ -624,6 +627,7 @@ def complete_processing_job_and_progress_dag(
         print('RUN COMPLETED')
         end_ts = time.time()
         print('SIMULATED RUN COMPLETED at: ', end_ts)
+        send_completion_notification(obj_run=obj_run)
         return
     # or human operator caused a break in exploration
     else:
@@ -1134,4 +1138,55 @@ def get_run_identifiers(request):
     workflow_id = request.GET.get('wid', -1)
     run_id = request.GET.get('rid', -1)
     return user_id, project_id, workflow_id, run_id
+
+
+def send_completion_notification(obj_run: run_components.Run):
+    """Constructs and sends the webhook notification to the client's URL."""
+
+    if not obj_run.notification_url:
+        print("No notification URL found for run: ", obj_run.id)
+        return False
+    
+    webhook_url = obj_run.notification_url
+
+    # 1. Construct the payload
+    # Iterate on dir files
+    list_file_names = []
+    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+    if run_dir_path.is_dir():
+        for file_path in run_dir_path.iterdir():
+            if file_path.is_file():
+                # add this file name and its path (with download link)
+                list_file_names.append(file_path.name)
+    payload = {
+        'run_id': obj_run.id,
+        'status': obj_run.status,
+        'list_file_names': list_file_names,
+        'completed_at': timezone.now().isoformat()
+    }
+    # Convert the payload to JSON
+    json_payload = json.dumps(payload)
+    # # Use compact separators to minimize payload size (optional optimization)
+    # json_payload = json.dumps(payload, separators=(',', ':'))
+
+    # 2. Set headers
+    headers = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Cymphony-Webhook/1.0'
+    }
+
+    # 3. Send the request
+    try:
+        response = requests.post(webhook_url, headers=headers, data=json_payload, timeout=30)
+        # check for successful status codes 
+        response.raise_for_status()
+        print(f"Successfully sent notification for run {obj_run.id} to {webhook_url}. Status: {response.status_code}")
+        return True
+    except requests.exceptions.RequestException as e:
+        # This is where an asynchronous retry mechanism should be triggered.
+        print(f"Failed to send notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        return False
+    except Exception as e:
+        print(f"Error sending completion notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        return False
 
