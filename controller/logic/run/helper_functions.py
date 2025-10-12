@@ -285,7 +285,8 @@ def progress_dag(
         obj_run: run_components.Run,
         original_dag: run_components.DiGraph,
         operator_nodes_in_execution_order: list,
-        mapping_node_id_vs_job_id: dict
+        mapping_node_id_vs_job_id: dict,
+        id_field_name: str=None
 ):
     """Execute dag based on the execution order"""
     run_prefix_table_name = get_run_prefix_table_name(obj_run=obj_run)
@@ -318,7 +319,8 @@ def progress_dag(
                 obj_job=obj_job,
                 annotations_per_tuple_per_worker_table_name=information.get(
                     'annotations_per_tuple_per_worker_table_name'),
-                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name')
+                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name'),
+                id_field_name=id_field_name
             )
             if submitted:   # job submitted to cymphony dashboard
                 # if run is a simulation run, simulate workers on this 3a_kn job
@@ -364,7 +366,8 @@ def progress_dag(
                 obj_job=obj_job,
                 annotations_per_tuple_per_worker_table_name=information.get(
                     'annotations_per_tuple_per_worker_table_name'),
-                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name')
+                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name'),
+                id_field_name=id_field_name
             )
             if submitted:   # job submitted to cymphony dashboard
                 # if run is a simulation run, simulate workers on this 3a_knlm job

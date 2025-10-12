@@ -132,6 +132,88 @@ def find_job(job_id: int, run_id: int, workflow_id: int, project_id: int, user_i
     finally:
         cursor.close()
 
+def find_3a_kn_job(run_id: int, workflow_id: int, project_id: int, user_id: int):
+    """Return the 3a_kn job under a run from the db"""
+
+    cursor = connection.cursor()
+    job = None
+    try:
+        # get the specific workflow for this user project from the all_workflows table
+        table_all_jobs = "all_jobs"
+        cursor.execute(
+            "SELECT u_id, p_id, w_id, r_id, j_id, j_name, j_type, j_status, date_creation FROM " +
+            table_all_jobs +
+            " WHERE u_id = %s AND p_id = %s AND w_id = %s AND r_id = %s AND j_type = %s AND j_name = %s",
+            [user_id, project_id, workflow_id, run_id, settings.OPERATOR_TYPES[1], settings.HUMAN_OPERATORS[0]]
+        )
+        job_row = dict_fetchone(cursor)
+
+        if job_row:
+            obj_job = job_components.Job(
+                user_id=job_row['u_id'],
+                project_id=job_row['p_id'],
+                workflow_id=job_row['w_id'],
+                run_id=job_row['r_id'],
+                job_id=job_row['j_id'],
+                job_name=job_row['j_name'],
+                job_type=job_row['j_type'],
+                job_status=job_row['j_status'],
+                date_creation=job_row['date_creation']
+            )
+            job = obj_job
+        else:
+            job = None
+
+        return job
+
+    except ValueError as err:
+        print('Data access exception in find 3a_knjob')
+        print(err.args)
+
+    finally:
+        cursor.close()
+
+def find_3a_knlm_job(run_id: int, workflow_id: int, project_id: int, user_id: int):
+    """Return the 3a_knlm job under a run from the db"""
+
+    cursor = connection.cursor()
+    job = None
+    try:
+        # get the specific workflow for this user project from the all_workflows table
+        table_all_jobs = "all_jobs"
+        cursor.execute(
+            "SELECT u_id, p_id, w_id, r_id, j_id, j_name, j_type, j_status, date_creation FROM " +
+            table_all_jobs +
+            " WHERE u_id = %s AND p_id = %s AND w_id = %s AND r_id = %s AND j_type = %s AND j_name = %s",
+            [user_id, project_id, workflow_id, run_id, settings.OPERATOR_TYPES[1], settings.HUMAN_OPERATORS[2]]
+        )
+        job_row = dict_fetchone(cursor)
+
+        if job_row:
+            obj_job = job_components.Job(
+                user_id=job_row['u_id'],
+                project_id=job_row['p_id'],
+                workflow_id=job_row['w_id'],
+                run_id=job_row['r_id'],
+                job_id=job_row['j_id'],
+                job_name=job_row['j_name'],
+                job_type=job_row['j_type'],
+                job_status=job_row['j_status'],
+                date_creation=job_row['date_creation']
+            )
+            job = obj_job
+        else:
+            job = None
+
+        return job
+
+    except ValueError as err:
+        print('Data access exception in find 3a_knlm job')
+        print(err.args)
+
+    finally:
+        cursor.close()
+
 
 def create_job(obj_job: job_components.Job):
     """Insert the incoming job into db"""
@@ -267,7 +349,8 @@ def do_bookkeeping_3a_kn(
         configuration: dict,
         obj_job: job_components.Job,
         annotations_per_tuple_per_worker_table_name: str,
-        aggregated_annotations_table_name: str
+        aggregated_annotations_table_name: str,
+        id_field_name: str=None
 ):
     """Do some bookkeeping operations for 3a_kn job"""
     cursor = connection.cursor()
@@ -358,6 +441,17 @@ def do_bookkeeping_3a_kn(
         # table_final_labels = aggregated_annotations_table_name
         table_final_labels = job_prefix_table_name + "final_labels"
         cursor.callproc('create_table_final_labels', [table_final_labels])
+
+        if id_field_name != None:
+            # create a table to store drive-by-curation votes <id_field_name, worker_id, annotation>
+            table_drive_by_curation_votes = job_prefix_table_name + "drive_by_curation_votes"
+            # the id_field_name should be coming from the variable id_field_name, not hardcoded as string 'id_field_name'
+            cursor.execute(
+                "CREATE TABLE " +
+                table_drive_by_curation_votes +
+                f" ({id_field_name} TEXT, worker_id integer, annotation text, date_creation TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY ({id_field_name}))",
+                []
+            )
         return
     except ValueError as err:
         print('Data access exception in bookkeeping 3a_kn job')
@@ -365,6 +459,87 @@ def do_bookkeeping_3a_kn(
     finally:
         cursor.close()
 
+def insert_drive_by_curation_votes(obj_job: job_components.Job, curations: list, id_field_name: str):
+    """Insert drive-by-curation votes into the drive_by_curation_votes table"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_drive_by_curation_votes = job_prefix_table_name + "drive_by_curation_votes"
+        for curation in curations:
+            external_tuple_id = curation[0]
+            worker_id = curation[1]
+            annotation = curation[2]
+            cursor.execute(
+                "INSERT INTO " + table_drive_by_curation_votes + " (" + id_field_name + ", worker_id, annotation) VALUES (%s, %s, %s)",
+                [external_tuple_id, worker_id, annotation]
+            )
+    except ValueError as err:
+        print('Data access exception in insert drive-by-curation votes')
+        print(err.args)
+    finally:
+        cursor.close()
+
+def create_temp_table(obj_job: job_components.Job, id_field_name: str):
+    """Create a temp table to store the current annotations"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        cursor.execute(
+            "CREATE TABLE " + table_temp_annotations + " (" + id_field_name + " TEXT, worker_id integer, annotation text)",
+            []
+        )
+        return
+    except ValueError as err:
+        print('Data access exception in create temp table')
+        print(err.args)
+    finally:
+        cursor.close()
+
+def insert_temp_curations(obj_job: job_components.Job, curations: list, id_field_name: str):
+    """Insert temp annotations into the temp table"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        for curation in curations:
+            external_tuple_id = curation[0]
+            worker_id = curation[1]
+            annotation = curation[2]
+            cursor.execute(
+                "INSERT INTO " + table_temp_annotations + " (" + id_field_name + ", worker_id, annotation) VALUES (%s, %s, %s)",
+                [external_tuple_id, worker_id, annotation]
+            )
+        return
+    except ValueError as err:
+        print('Data access exception in insert temp annotations')
+        print(err.args)
+    finally:
+        cursor.close()
+
+
+def join_temp_table_with_tuples(obj_job: job_components.Job, id_field_name: str):
+    """Join the temp table with the tuples table to get the task_id vs worker_id vs annotation"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        table_tuples = job_prefix_table_name + "tuples"
+        cursor.execute(
+            "SELECT tup._id, t.worker_id, t.annotation FROM " + table_temp_annotations + " t INNER JOIN " + table_tuples + " tup USING(" + id_field_name + ")",
+            []
+        )
+        # return the results
+        annotations = cursor.fetchall()
+        resulting_annotations = []
+        for annotation in annotations:
+            resulting_annotations.append([annotation[0], annotation[1], annotation[2]])
+        return resulting_annotations
+    except ValueError as err:
+        print('Data access exception in join temp table with tuples')
+        print(err.args)
+    finally:
+        cursor.close()
 
 def create_file_from_table(source_table_name: str, destination_file_path: Path):
     """Create csv file from table"""
@@ -2411,5 +2586,151 @@ def get_count_tasks(obj_job: job_components.Job):
     except ValueError as err:
         print('Data access exception in get count of tasks')
         print(err.args)
+    finally:
+        cursor.close()
+
+
+def add_drive_by_votes_to_outputs(obj_job: job_components.Job, curations: list):
+    """Add drive-by votes to the outputs table"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_outputs = job_prefix_table_name + "outputs"
+        for curation in curations:
+            task_id = curation[0]
+            worker_id = curation[1]
+            annotation = curation[2]
+            cursor.execute(
+                "INSERT INTO " + table_outputs +
+                " (_id, worker_id, annotation) VALUES (%s, %s, %s)",
+                [task_id, worker_id, annotation]
+            )
+    except ValueError as err:
+        print('Data access exception in add drive-by votes to outputs')
+        print(err.args)
+    finally:
+        cursor.close()
+
+def aggregate_while_drive_by_curating(obj_job: job_components.Job, curations: list):
+    """Aggregate while drive-by-curating"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_final_labels = job_prefix_table_name + "final_labels"
+        table_outputs = job_prefix_table_name + "outputs"
+        table_tasks = job_prefix_table_name + "tasks"
+        
+        # check the config parameters table for this job to figure out the job_k, job_n, job_l, job_m if they exist
+        table_config_parameters = job_prefix_table_name + "config_parameters"
+        cursor.execute(
+            "SELECT key, value FROM " + table_config_parameters +
+            " WHERE key IN ('k', 'n', 'l', 'm')",
+            []
+        )
+        config_parameters = dict_fetchall(cursor)
+        for config_parameter in config_parameters:
+            if config_parameter['key'] == 'k':
+                job_k = int(config_parameter['value'])
+            elif config_parameter['key'] == 'n':
+                job_n = int(config_parameter['value'])
+
+        # For each curation:
+        for curation in curations:
+            task_id = curation[0]
+            worker_id = curation[1]
+            annotation = curation[2]
+            # 1. If the task_id is already in the final_labels table, skip it.
+            cursor.execute(
+                "SELECT _id FROM " + table_final_labels +
+                " WHERE _id = %s",
+                [task_id]
+            )
+            existing_final_label = cursor.fetchone()
+            if existing_final_label:
+                continue
+            
+            # Lock the task in the tasks table as a precaution
+            cursor.execute(
+                "SELECT _id, total_assigned, abandoned, pending_annotations, done FROM " +
+                table_tasks +
+                " WHERE _id = %s FOR UPDATE",
+                [task_id]
+            )
+            task = cursor.fetchone()
+            task_done = task[4]
+
+            # 2. Check if the votes for this task id converge in the outputs table.
+            flag_k_votes_agree = False  # if k votes agree out of n
+            final_annotation = settings.DEFAULT_AGGREGATION_LABEL  # 'undecided'
+            cursor.execute(
+                "SELECT VOTES_PER_ANNOTATION.annotation " +
+                "FROM ( " +
+                "   SELECT TASK_ANNOTATIONS.annotation, count(*) AS n_votes " +
+                "   FROM ( " +
+                "       SELECT _id, worker_id, annotation " +
+                "       FROM " + table_outputs + " " +
+                "       WHERE _id = %s " +
+                "   ) AS TASK_ANNOTATIONS " +
+                "   GROUP BY TASK_ANNOTATIONS.annotation " +
+                ") AS VOTES_PER_ANNOTATION " +
+                "WHERE VOTES_PER_ANNOTATION.n_votes >= %s",
+                [task_id, job_k]
+            )
+            final_annotation_row = cursor.fetchone()
+            if not final_annotation_row:
+                pass    # flag_k_votes_agree remains False
+            else:
+                flag_k_votes_agree = True
+                final_annotation = final_annotation_row[0]
+
+            cursor.execute(
+                "SELECT count(*) AS n_task_annotations " +
+                "FROM " + table_outputs + " " +
+                "WHERE _id = %s ",
+                [task_id]
+            )
+            n_task_annotations_row = cursor.fetchone()
+            n_task_annotations = int(n_task_annotations_row[0])
+
+            # main logic
+            # 3. If they converge, aggregate the task, and set done to True in the tasks table.
+            # 4. If they don't converge, do nothing.
+            # if n_task_annotations > job_n:    # This case can reach when recording drive-by votes
+            #     print('ERROR: Should never have reached here')
+            if n_task_annotations >= job_n:
+                if flag_k_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
+                else:
+                    # final_annotation is still 'undecided'.
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
+            elif n_task_annotations >= job_k:  # votes >=k and < n
+                if flag_k_votes_agree:
+                    aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
+                else:
+                    # votes >= k but k don't agree out of them.
+                    # so wait for votes to become n but signal to assign that it should open this task for assignment again
+                    if task_done:
+                        # don't do anything since the normal assign might have assigned it to someone.
+                        pass
+            else: # votes < k, so just wait for enough votes.
+                pass
+            
+            # Update the tasks table
+            cursor.execute(
+                "UPDATE " +
+                table_tasks +
+                " SET done = %s  WHERE _id = %s",
+                [task_done, task_id]
+            )
+            
+            return
+            
+    except ValueError as err:
+        print('Data access exception in aggregate while drive-by-curating')
+        print(err.args)
+        raise
     finally:
         cursor.close()

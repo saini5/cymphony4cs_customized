@@ -209,13 +209,14 @@ def store_uploaded_file(obj_workflow_file: workflow_components.WorkflowFile, f: 
             cursor.execute(
                 "INSERT into " +
                 "workflow_input_files" +
-                " (w_id, p_id, u_id, input_file_path, date_creation) VALUES (%s, %s, %s, %s, %s)",
+                " (w_id, p_id, u_id, input_file_path, date_creation, id_field_name) VALUES (%s, %s, %s, %s, %s, %s)",
                 [
                     obj_workflow_file.workflow_id,
                     obj_workflow_file.project_id,
                     obj_workflow_file.user_id,
                     file_path_str,
-                    timezone.now()
+                    timezone.now(), 
+                    obj_workflow_file.id_field_name
                 ]
             )
         elif obj_workflow_file.type == settings.UPLOADED_FILE_TYPES[3]:
@@ -329,7 +330,7 @@ def find_all_files(user_id: int, project_id: int, workflow_id: int):
         table_workflow_layout_files = "workflow_layout_files"
 
         cursor.execute(
-            "SELECT input_file_path, f_id, w_id, p_id, u_id, date_creation FROM " +
+            "SELECT input_file_path, f_id, w_id, p_id, u_id, date_creation, id_field_name FROM " +
             table_workflow_input_files +
             " WHERE w_id = %s AND p_id = %s AND u_id = %s",
             [workflow_id, project_id, user_id]
@@ -390,7 +391,8 @@ def find_all_files(user_id: int, project_id: int, workflow_id: int):
                 project_id=row['p_id'],
                 user_id=row['u_id'],
                 file_path_str=row['input_file_path'],
-                date_creation=row['date_creation']
+                date_creation=row['date_creation'],
+                id_field_name=row['id_field_name']
             )
             list_all_files.append(obj_workflow_file)
         for row in layout_files:
@@ -429,7 +431,7 @@ def find_workflow_file(file_type: str, file_id: int, workflow_id: int, project_i
 
         if file_type == settings.UPLOADED_FILE_TYPES[1]:
             cursor.execute(
-                "SELECT input_file_path, f_id, w_id, p_id, u_id, date_creation FROM " +
+                "SELECT input_file_path, f_id, w_id, p_id, u_id, date_creation, id_field_name FROM " +
                 table_workflow_input_files +
                 " WHERE f_id = %s AND w_id = %s AND p_id = %s AND u_id = %s",
                 [file_id, workflow_id, project_id, user_id]
@@ -464,15 +466,28 @@ def find_workflow_file(file_type: str, file_id: int, workflow_id: int, project_i
             workflow_file_row = dict_fetchone(cursor)
             workflow_file_path = workflow_file_row['layout_file_path']
 
-        obj_workflow_file = workflow_components.WorkflowFile(
-            file_type=file_type,
-            file_id=workflow_file_row['f_id'],
-            workflow_id=workflow_file_row['w_id'],
-            project_id=workflow_file_row['p_id'],
-            user_id=workflow_file_row['u_id'],
-            file_path_str=workflow_file_path,
-            date_creation=workflow_file_row['date_creation']
-        )
+        if file_type == settings.UPLOADED_FILE_TYPES[1]:
+            obj_workflow_file = workflow_components.WorkflowFile(
+                file_type=file_type,
+                file_id=workflow_file_row['f_id'],
+                workflow_id=workflow_file_row['w_id'],
+                project_id=workflow_file_row['p_id'],
+                user_id=workflow_file_row['u_id'],
+                file_path_str=workflow_file_path,
+                date_creation=workflow_file_row['date_creation'],
+                id_field_name=workflow_file_row['id_field_name']
+            )
+        else:
+            obj_workflow_file = workflow_components.WorkflowFile(
+                file_type=file_type,
+                file_id=workflow_file_row['f_id'],
+                workflow_id=workflow_file_row['w_id'],
+                project_id=workflow_file_row['p_id'],
+                user_id=workflow_file_row['u_id'],
+                file_path_str=workflow_file_path,
+                date_creation=workflow_file_row['date_creation'],
+                id_field_name=None
+            )
 
         workflow_file = obj_workflow_file
         return workflow_file

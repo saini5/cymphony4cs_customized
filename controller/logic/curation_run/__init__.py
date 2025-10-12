@@ -1,0 +1,1 @@
+# Curation Run is a special type of run that is used for the external curation process, so we will be using the run code wherever possible.
