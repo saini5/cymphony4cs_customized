@@ -108,6 +108,8 @@ def find_job(job_id: int, run_id: int, workflow_id: int, project_id: int, user_i
             " WHERE u_id = %s AND p_id = %s AND w_id = %s AND r_id = %s AND j_id = %s",
             [user_id, project_id, workflow_id, run_id, job_id]
         )
+        if not cursor.rowcount:
+            return None
         job_row = dict_fetchone(cursor)
 
         obj_job = job_components.Job(
@@ -1324,12 +1326,15 @@ def bookkeeping_and_aggregate_for_regular_workers(obj_job: job_components.Job, t
             elif n_task_annotations == job_n:
                 if flag_k_votes_agree:
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
                 else:
                     # final_annotation is still 'undecided'.
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
             elif n_task_annotations >= job_k:  # votes >=k and < n
                 if flag_k_votes_agree:
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
                 else:
                     # votes >= k but k don't agree out of them.
                     # so wait for votes to become n but signal to assign that it should open this task for assignment again
@@ -1409,12 +1414,15 @@ def bookkeeping_and_aggregate_for_steward_workers(obj_job: job_components.Job, t
             elif n_task_annotations == job_m:
                 if flag_l_votes_agree:
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
                 else:
                     # final_annotation is still 'undecided'.
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
             elif n_task_annotations >= job_l:  # votes >=l and < m
                 if flag_l_votes_agree:
                     aggregate(cursor, task_id, final_annotation, obj_job)
+                    task_done = True
                 else:
                     # votes >= l but l don't agree out of them.
                     # so wait for votes to become m but signal to assign that it should open this task for assignment again
@@ -2726,7 +2734,7 @@ def aggregate_while_drive_by_curating(obj_job: job_components.Job, curations: li
                 [task_done, task_id]
             )
             
-            return
+        return
             
     except ValueError as err:
         print('Data access exception in aggregate while drive-by-curating')

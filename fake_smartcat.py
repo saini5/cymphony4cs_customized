@@ -183,7 +183,7 @@ def simulate_drive_by_curation():
         run_id = client.create_curation_run(dict_file_paths, data_file_id_field_name, notification_url)
         logger.info(f"Curation run created with ID: {run_id}")
 
-        time.sleep(30)
+        time.sleep(180)
 
         # 3. SC sends ad-hoc curations
 
