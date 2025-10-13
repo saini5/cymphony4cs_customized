@@ -54,7 +54,11 @@ class CymphonyClient:
             logger.info(f"POSTing to {url} with data: {data}")
             response = self.session.post(url, data=data, files=files) # For form-urlencoded, if any
         response.raise_for_status() # Raise an exception for HTTP errors
-        return response.json()
+        # Can sometimes receive a zip, so branch on content-type
+        if response.headers.get('Content-Type') == 'application/zip':
+            return response.content
+        else:
+            return response.json()
 
     def _get(self, endpoint, params=None):
         url = f"{self.base_url}{endpoint}"
@@ -132,6 +136,20 @@ class CymphonyClient:
         response = self._post(endpoint, data=data)
         print("Received the response from Cymphony: ", response)
         return response
+    
+    def get_run_status(self, run_id):
+        endpoint = f'/controller/?category=curation_run&action=status'
+        logger.info(f"Getting status of run {run_id} from Cymphony")
+        response = self._get(endpoint, params={'run_id': run_id})
+        logger.info(f"Received the response from Cymphony: {response}")
+        return response
+
+    def download_tables(self, run_id, table_names):
+        endpoint = f'/controller/?category=curation_run&action=download_tables'
+        logger.info(f"Downloading tables {table_names} from Cymphony for run {run_id}")
+        contents = self._post(endpoint, data={'run_id': run_id, 'table_names': json.dumps(table_names)})
+        logger.info(f"Received the zip contents from Cymphony")
+        return contents
 
 def generate_random_curations(data_csv_path: Path, id_field_name: str, num_curations: int):
     """Generates random annotations for tuples from a CSV file. No Pandas required."""
@@ -183,7 +201,7 @@ def simulate_drive_by_curation():
         run_id = client.create_curation_run(dict_file_paths, data_file_id_field_name, notification_url)
         logger.info(f"Curation run created with ID: {run_id}")
 
-        time.sleep(180)
+        time.sleep(30)
 
         # 3. SC sends ad-hoc curations
 
@@ -200,6 +218,25 @@ def simulate_drive_by_curation():
             logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
         else:
             logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
+        
+        time.sleep(30)
+
+        # 4. SC gets the status of the run
+        status_response = client.get_run_status(run_id)
+        logger.info(f"Run {run_id} status: {status_response}")
+
+        time.sleep(30)
+
+        # 5. SC downloads the tables
+        table_names = ['Assignments', 'Annotations', 'Aggregations']
+        download_tables_contents = client.download_tables(run_id, table_names)
+        # save the zip contents
+        download_tables_dir = Path("fake-smartcat-exps/drive-by-curation/test-workflow")
+        zip_file_path = download_tables_dir / f"tables_{run_id}_{int(time.time())}.zip"
+        with open(zip_file_path, 'wb') as f:
+            f.write(download_tables_contents)
+        logger.info(f"Tables downloaded from Cymphony for run {run_id} and placed in {zip_file_path}")
+        
 
     except requests.exceptions.HTTPError as e:
         logger.error(f"Cymphony API Error: {e.response.status_code} - {e.response.text}")

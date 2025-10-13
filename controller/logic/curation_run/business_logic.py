@@ -329,7 +329,7 @@ def download_tables(request: HttpRequest):
         a. Assignments
         b. Annotations
         c. Aggregations
-    Outputs: Files - csv files for the specified tables
+    Outputs: Files - csv files for the specified tables as a zip file
     """
     try:
         # Capture the inputs
@@ -347,12 +347,19 @@ def download_tables(request: HttpRequest):
             obj_job = job_dao.find_3a_knlm_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
         if not obj_job:
             return JsonResponse({'status': 'error', 'message': 'No 3a_kn or 3a_knlm job found for this run'}, status=404)
+        
+        print(f"Found the 3a_kn or 3a_knlm job for this run")
+        print(f"Job: {obj_job}")
+        print(f"Job ID: {obj_job.id}")
 
         # Parse the table names
         table_names = json.loads(table_names)
         for table_name in table_names:
             if table_name not in ['Assignments', 'Annotations', 'Aggregations']:
                 return JsonResponse({'status': 'error', 'message': 'Invalid table name'}, status=400)
+        
+        print(f"Table names: {table_names}")
+        print(type(table_names))
 
         in_memory_zip = io.BytesIO()
         zip_filename = f"files.zip"
@@ -366,13 +373,21 @@ def download_tables(request: HttpRequest):
                     export_table = get_job_prefix_table_name(obj_job=obj_job) + 'outputs'
                 elif table_name == 'Aggregations':
                     export_table = get_job_prefix_table_name(obj_job=obj_job) + 'final_labels'
-                # Export the table as a csv file
+                
+                # Export the table alongwith original id field name and tuples
                 dest_file_name = table_name + '.csv'
                 dest_file_path = run_dir_path.joinpath(dest_file_name)
-                job_dao.create_file_from_table(source_table_name=export_table, destination_file_path=dest_file_path)
+                job_dao.export_customized_table(obj_job=obj_job, table=export_table, destination_file_path=dest_file_path)
+
+                # # Export the table as a csv file
+                # dest_file_name = table_name + '.csv'
+                # dest_file_path = run_dir_path.joinpath(dest_file_name)
+                # job_dao.create_file_from_table(source_table_name=export_table, destination_file_path=dest_file_path)
 
                 zf.write(dest_file_path, arcname=dest_file_name) # Add file to zip
                 files_found = True
+        
+        print(f"Files found: {files_found}")
 
         # Return these files from the run directory
         if not files_found:

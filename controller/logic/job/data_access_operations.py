@@ -451,7 +451,7 @@ def do_bookkeeping_3a_kn(
             cursor.execute(
                 "CREATE TABLE " +
                 table_drive_by_curation_votes +
-                f" ({id_field_name} TEXT, worker_id integer, annotation text, date_creation TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY ({id_field_name}))",
+                f" ({id_field_name} TEXT, worker_id integer, annotation text, date_creation TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)",
                 []
             )
         return
@@ -539,6 +539,38 @@ def join_temp_table_with_tuples(obj_job: job_components.Job, id_field_name: str)
         return resulting_annotations
     except ValueError as err:
         print('Data access exception in join temp table with tuples')
+        print(err.args)
+    finally:
+        cursor.close()
+
+def export_customized_table(obj_job: job_components.Job, table: str, destination_file_path: Path):
+    """Export the table with the original id field name"""
+    db_params = settings.DATABASES['default']
+    con = psycopg2.connect(
+        database=db_params['NAME'],
+        user=db_params['USER'],
+        password=db_params['PASSWORD'],
+        host=db_params['HOST'],
+        port=db_params['PORT']
+    )
+    cursor = con.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_tuples = job_prefix_table_name + "tuples"
+        custom_query = f"""
+            COPY (
+            SELECT *
+            FROM {table} AS t
+            INNER JOIN {table_tuples} AS tup USING (_id)
+            )
+            TO STDOUT WITH CSV HEADER
+        """
+        with destination_file_path.open(mode='w') as f:
+            cursor.copy_expert(sql=custom_query, file=f)
+            con.commit()
+        return
+    except ValueError as err:
+        print('Data access exception in export customized table')
         print(err.args)
     finally:
         cursor.close()
