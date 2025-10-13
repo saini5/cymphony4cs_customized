@@ -11,6 +11,8 @@ import json
 import logging
 from pathlib import Path
 import shutil
+import random
+import csv
 
 # --- Configuration ---
 CYMPHONY_URL = 'http://127.0.0.1:8000' # Your Cymphony instance URL
@@ -40,13 +42,17 @@ class CymphonyClient:
         self.session.mount("https://", adapter)
         self.session.headers.update({'User-Agent': 'FakeSmartcat-python-requests/1.0'}) # TODO: Cymphony currently returns json response only if 'python' in user-agent. How can I change it so that it returns json response whenever the request is a web api request and not from the browser.
 
-    def _post(self, endpoint, data, is_json=False):
+    def _post(self, endpoint, data=None, files=None, json=None):
+        if json is not None and (data or files):
+            raise ValueError("Pass either json=... or (data=..., files=...), not both.")
+        
         url = f"{self.base_url}{endpoint}"
-        logger.info(f"POSTing to {url} with data: {data}")
-        if is_json:
-            response = self.session.post(url, json=data)
+        if json is not None:
+            logger.info(f"POSTing to {url} with json: {json}")
+            response = self.session.post(url, json=json)
         else:
-            response = self.session.post(url, data=data) # For form-urlencoded, if any
+            logger.info(f"POSTing to {url} with data: {data}")
+            response = self.session.post(url, data=data, files=files) # For form-urlencoded, if any
         response.raise_for_status() # Raise an exception for HTTP errors
         return response.json()
 
@@ -93,211 +99,107 @@ class CymphonyClient:
 
         logger.info(f"Logged in {username}. CSRF Token: {self.session.headers.get('X-CSRFToken')}")
 
-    def create_project(self, project_name, project_description):
-        endpoint = '/controller/?category=project&action=create'
-        data = {'pname': project_name, 'pdesc': project_description}
-        response = self._post(endpoint, data)
-        return response['project_id']
+    def create_curation_run(self, dict_file_paths, data_file_id_field_name, notification_url):
+        """Create Cymphony based curation run."""
 
-    def create_workflow(self, project_id, workflow_name, workflow_description):
-        endpoint = f'/controller/?category=workflow&action=create&pid={project_id}'
-        data = {'wname': workflow_name, 'wdesc': workflow_description}
-        response = self._post(endpoint, data)
-        return response['workflow_id']
+        # The receiver expects the below
+        # workflow_file = request.FILES.get('workflow_file')
+        # data_file = request.FILES.get('data_file')
+        # id_field_name = request.POST.get('id_field_name', None)
+        # instructions_file = request.FILES.get('instructions_file')
+        # layout_file = request.FILES.get('layout_file')
+        # notification_url = request.POST.get('notification_url', None)
 
-    def upload_workflow_file(self, project_id, workflow_id, file_path):
-        endpoint = f'/controller/?category=workflow&action=edit_workflow_upload_files&pid={project_id}&wid={workflow_id}'
-        with open(file_path, 'rb') as f:
-            files = {'fname': f}
-            url = f"{self.base_url}{endpoint}"
-            logger.info(f"Uploading file {file_path} to {url}")
-            response = self.session.post(url, files=files)
-            response.raise_for_status()
-            return response.json()
-
-    def create_run(self, project_id, workflow_id, run_name, run_description, notification_url):
-        """Create Cymphony based run."""
-        endpoint = f'/controller/?category=run&action=create&pid={project_id}&wid={workflow_id}'
-
-        # --- Current simplified approach for Cymphony backend ---
-        # Cymphony's /controller/ endpoint currently expects form-urlencoded data.
-        # The `notification_url` is passed as a simple POST parameter.
-        data_for_cymphony = {
-            'rname': run_name,
-            'rdesc': run_description,
-            'notification_url': notification_url,
+        endpoint = f'/controller/?category=curation_run&action=create'
+        dict_files = dict()
+        for key, value in dict_file_paths.items():
+            dict_files[key] = open(value, 'rb')
+        form_data = {
+            'id_field_name': data_file_id_field_name,
+            'notification_url': notification_url
         }
-
-        # --- Future/more secure approach (commented out for now) ---
-        # callback_info = {
-        #     'url': notification_url,
-        #     'headers': {'X-Smartcat-Id': 'smartcat-instance-1'}, # Example custom header
-        #     'secret': callback_secret # When Cymphony supports webhook secrets
-        # }
-        # data_with_callback_json = {
-        #     'rname': run_name,
-        #     'rdesc': run_description,
-        #     'callback': callback_info # For a dedicated API endpoint accepting JSON
-        # }
-
-        response = self._post(endpoint, data=data_for_cymphony, is_json=False)
+        response = self._post(endpoint, data=form_data, files=dict_files)
+        print("Received the response from Cymphony: ", response)
         return response['run_id']
 
-    def get_run_status(self, project_id, workflow_id, run_id):
-        endpoint = f'/controller/?category=run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'
-        return self._get(endpoint)
+    def send_ad_hoc_curations(self, run_id, curations):
+        endpoint = f'/controller/?category=curation_run&action=drive_by_curate'
+        data = {
+            'run_id': run_id,
+            'curations': json.dumps(curations), # List of [external_tuple_id, annotator_worker_id, annotation]
+        }
+        logger.info(f"Sending {len(curations)} ad-hoc curations to Cymphony for run {run_id}")
+        response = self._post(endpoint, data=data)
+        print("Received the response from Cymphony: ", response)
+        return response
 
-    def download_file(self, project_id, workflow_id, run_id, file_name):
-        endpoint = f'/controller/?category=run&action=download_file&pid={project_id}&wid={workflow_id}&rid={run_id}&fname={file_name}'
-        url = f"{self.base_url}{endpoint}"
-        logger.info(f"Downloading file {file_name} from {url}")
-        response = self.session.get(url, stream=True)
-        response.raise_for_status()
-        return response.content
-
-# --- Fake Smartcat Webhook Receiver ---
-app = Flask(__name__)
-received_callbacks = [] # Store received callbacks
-callback_received_event = threading.Event() # Event to signal main thread
-
-@app.route('/webhook', methods=['POST'])
-def smartcat_webhook_receiver():
-    try:
-        payload = request.get_json()
-        logger.info(f"Received webhook: {json.dumps(payload)}")
-        
-        # --- Optional: Verify webhook signature (commented out for now) ---
-        # signature = request.headers.get('X-Webhook-Signature')
-        # if signature and WEBHOOK_SECRET:
-        #     import hmac, hashlib
-        #     expected_signature = hmac.new(WEBHOOK_SECRET.encode(), request.data, hashlib.sha256).hexdigest()
-        #     if not hmac.compare_digest(f'sha256={expected_signature}', signature):
-        #         logger.warning("Webhook signature verification failed.")
-        #         return jsonify({"status": "error", "message": "Invalid signature"}), 401
-        
-        received_callbacks.append(payload)
-        callback_received_event.set() # Signal that a callback was received
-        return jsonify({"status": "received", "message": "Callback processed"}), 200
-    except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-def run_flask_app():
-    # When running Flask in a separate thread, debug=True and use_reloader=True are problematic
-    # Disable debug and reloader for threaded execution
-    app.run(port=5000, debug=False, use_reloader=False)
+def generate_random_curations(data_csv_path: Path, id_field_name: str, num_curations: int):
+    """Generates random annotations for tuples from a CSV file. No Pandas required."""
+    if not data_csv_path.exists():
+        raise FileNotFoundError(f"Data CSV file not found at {data_csv_path}")
+    
+    with open(data_csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        # Store all rows (dictionaries) in a list
+        all_rows = list(reader) # Implicitly skips the header row
+        curations = []
+        # Check if there are any rows to pick from
+        if all_rows and len(all_rows) >= num_curations:
+            for _ in range(num_curations):
+                # Randomly select a random row
+                random_dict_row = random.choice(all_rows)
+                # Extract the value of the id_field_name
+                id = random_dict_row[id_field_name]
+                worker_id = random.choice([x for x in range(1, 100000)])
+                annotation = random.choice(['Yes', 'No', 'Cannot Determine'])
+                curations.append([id, worker_id, annotation])
+        else:
+            raise ValueError(f"No rows found in the data CSV file at {data_csv_path}")
+    return curations
 
 # --- Main Simulation Logic ---
-def simulate_bulk_curation():
+def simulate_drive_by_curation():
     client = CymphonyClient(CYMPHONY_URL)
     run_id = None
-    workflow_dir = None
     try:
-        logger.info("--- Starting Fake Smartcat Bulk Curation Simulation ---")
+        logger.info("--- Starting Fake Smartcat Drive-by Curation Simulation ---")
 
         # 1. SC logs in to CN
         logger.info(f"Logging in as {SMARTCAT_USERNAME}...")
         client.login(SMARTCAT_USERNAME, SMARTCAT_PASSWORD)
         logger.info("Login successful.")
 
-        # 2. SC creates a project
-        project_name = f"Smartcat_Bulk_Project_{int(time.time())}"
-        project_description = "Project for Smartcat bulk curation experiments"
-        logger.info(f"Creating project '{project_name}'...")
-        project_id = client.create_project(project_name, project_description)
-        logger.info(f"Project created with ID: {project_id}")
+        time.sleep(2)
 
-        # 3. SC sends over workflow and creates a run
-        # Create dummy workflow files first
-        workflow_dir = Path("fake-smartcat-exps/bulk-curation/test-workflow")
-        
-        workflow_name = f"Bulk_Workflow_{int(time.time())}"
-        workflow_description = "Workflow for bulk curation"
-        logger.info(f"Creating workflow '{workflow_name}' for project {project_id}...")
-        workflow_id = client.create_workflow(project_id, workflow_name, workflow_description)
-        logger.info(f"Workflow created with ID: {workflow_id}")
+        # 2. SC creates a curation run
+        workflow_dir = Path("fake-smartcat-exps/drive-by-curation/test-workflow")
+        dict_file_paths = {
+            'workflow_file': workflow_dir / "workflow.cy",
+            'data_file': workflow_dir / "data.csv",
+            'instructions_file': workflow_dir / "instructions.html"
+        }
+        data_file_id_field_name = "id"
+        notification_url = SMARTCAT_WEBHOOK_URL
+        run_id = client.create_curation_run(dict_file_paths, data_file_id_field_name, notification_url)
+        logger.info(f"Curation run created with ID: {run_id}")
 
-        logger.info(f"Uploading workflow files to workflow {workflow_id}...")
-        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "workflow.cy")
-        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "data.csv")
-        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "instructions.html")
-        logger.info("Workflow files uploaded.")
+        time.sleep(30)
 
-        run_name = f"Bulk_Curation_Run_{int(time.time())}"
-        run_description = "Bulk curation run with callback"
-        
-        # --- IMPORTANT ADAPTATION ---
-        # The /controller/ endpoint currently expects form-urlencoded data, not JSON for the 'callback' field.
-        # If Cymphony has a dedicated API endpoint that accepts JSON with 'callback' info (as discussed previously, e.g., in api_views.py),
-        # this part of the client needs to call THAT endpoint.
-        # Alternatively, I can assume the '/controller/?category=run&action=create' endpoint in Cymphony has been updated
-        # to handle a JSON body that includes a 'callback' field.
-        # For the purpose of this script, I'm simplifying by doing neither, so as to match Cymphony's current POST parameter expectation.
-        # When Cymphony's API is updated to accept JSON with a 'callback' object (including secrets),
-        # this client's create_run call should be updated to use that.
-        logger.info(f"Creating run '{run_name}' with notification URL: {SMARTCAT_WEBHOOK_URL}...")
-        run_id = client.create_run(project_id, workflow_id, run_name, run_description, 
-                                    SMARTCAT_WEBHOOK_URL)
-        logger.info(f"Run created with ID: {run_id}. Awaiting completion notification.")
+        # 3. SC sends ad-hoc curations
 
-        # 4. SC calls CN to check status (polling) OR waits for callback
-        # For this simulation, we'll implement a polling mechanism with a timeout,
-        # but prioritize the callback if received.
-
-        poll_interval = 60 * 5 # seconds (5 minutes)
-        max_poll_time = 3600 * 24 # seconds (24 hours)
-        start_time = time.time()
-        run_completed_via_poll = False
-        list_file_names = None
-        
-        while time.time() - start_time < max_poll_time:
-            # Wait for either a callback or the poll interval to pass
-            if callback_received_event.wait(timeout=poll_interval):
-                logger.info("Callback received! Processing callback and skipping polling.")
-                callback_received_event.clear() # Reset the event for the next potential callback
-                # Process the callback directly
-                latest_callback = received_callbacks[-1] # Process latest callback
-                if latest_callback.get('run_id') == run_id and latest_callback.get('status') == 'COMPLETED':
-                    logger.info(f"Run {run_id} completed via webhook notification.")
-                    run_completed_via_poll = False # Indicate completion via callback
-                    list_file_names = latest_callback.get('list_file_names')
-                    break
-                else:
-                    logger.info("Received a callback, but it's not for completion of this run. Continuing...")
-
-            else: # Timeout occurred, no callback received, proceed with polling
-                logger.info(f"Polling Cymphony for run {run_id} status...")
-                status_response = client.get_run_status(project_id, workflow_id, run_id)
-                current_status = status_response.get('status') # Assuming 'status' in response
-                logger.info(f"Run {run_id} current status: {current_status}")
-                list_file_names = status_response.get('list_file_names') # Assuming list of files in response
-
-                if current_status == 'COMPLETED': # Assuming Cymphony returns 'COMPLETED'
-                    logger.info(f"Run {run_id} completed via polling.")
-                    run_completed_via_poll = True
-                    break
-            
+        # Setting up the curations
+        num_curations_to_send = 2
+        logger.info(f"Starting drive-by curation: sending {num_curations_to_send} ad-hoc annotations...")
+        curations_data = generate_random_curations(
+            dict_file_paths['data_file'], 
+            data_file_id_field_name, 
+            num_curations_to_send
+        )
+        drive_by_response = client.send_ad_hoc_curations(run_id, curations_data)
+        if drive_by_response['status'] == 'success':
+            logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
         else:
-            logger.warning(f"Run {run_id} did not complete within {max_poll_time} seconds. Timeout.")
-            return
-
-        # 5. If run completed (either via poll or callback), download results
-        if run_completed_via_poll or (received_callbacks and any(cb.get('run_id') == run_id and cb.get('status') == 'COMPLETED' for cb in received_callbacks)):
-            logger.info(f"Run {run_id} is complete. Requesting to download files...")
-            if list_file_names:
-                for file_name in list_file_names:
-                    try:
-                        file_content = client.download_file(project_id, workflow_id, run_id, file_name)
-                        output_filename = f"smartcat_run_{run_id}_{file_name}"
-                        with open(output_filename, 'wb') as f:
-                            f.write(file_content)
-                        logger.info(f"Successfully downloaded {file_name} to {output_filename}")
-                    except requests.exceptions.RequestException as e:
-                        logger.error(f"Failed to download file {file_name}: {e}")
-            else:
-                logger.warning("No file names received to download.")
-        else:
-            logger.warning("Run did not complete, skipping file download.")
+            logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
 
     except requests.exceptions.HTTPError as e:
         logger.error(f"Cymphony API Error: {e.response.status_code} - {e.response.text}")
@@ -305,22 +207,12 @@ def simulate_bulk_curation():
         logger.error(f"An unexpected error occurred: {e}")
     finally:
         pass
-        # if workflow_dir and workflow_dir.exists():
-        #     shutil.rmtree(workflow_dir)
-        #     logger.info("Cleaned up temporary workflow files.")
 
 
 if __name__ == "__main__":
-    # Start the Flask app in a separate thread
-    flask_thread = threading.Thread(target=run_flask_app)
-    flask_thread.daemon = True # Allow main program to exit even if thread is running
-    flask_thread.start()
-    logger.info(f"Fake Smartcat webhook listener started on {SMARTCAT_WEBHOOK_URL}")
 
-    # Give Flask a moment to start
-    time.sleep(2) 
     
     # Run the simulation
-    simulate_bulk_curation()
+    simulate_drive_by_curation()
     
     logger.info("--- Fake Smartcat Simulation Complete ---")

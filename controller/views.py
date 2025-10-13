@@ -111,5 +111,9 @@ def process(request):
             return curation_run_logic.create(request)
         elif action == 'drive_by_curate':
             return curation_run_logic.drive_by_curate(request)
+        elif action == 'status':
+            return curation_run_logic.status(request)
+        elif action == 'download_tables':
+            return curation_run_logic.download_tables(request)
 
     return HttpResponse('Invalid request: ', request.path + action_category + action)

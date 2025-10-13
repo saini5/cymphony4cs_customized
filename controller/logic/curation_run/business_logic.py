@@ -12,7 +12,7 @@ import controller.logic.project.components as project_components
 import controller.logic.project.data_access_operations as project_dao
 import controller.logic.job.components as job_components
 import controller.logic.job.data_access_operations as job_dao
-from controller.logic.common_logic_operations import get_workflow_dir_path, get_run_dir_path
+from controller.logic.common_logic_operations import get_workflow_dir_path, get_run_dir_path, get_job_prefix_table_name
 
 from collections import OrderedDict
 from cryptography.fernet import Fernet
@@ -46,9 +46,11 @@ def create(request: HttpRequest):
         data_file = request.FILES.get('data_file')
         id_field_name = request.POST.get('id_field_name', None)
         instructions_file = request.FILES.get('instructions_file')
-        layout_file = request.FILES.get('layout_file')
+        # Layout file is optional
+        layout_file = request.FILES.get('layout_file', None)
         notification_url = request.POST.get('notification_url', None)
         user_id = request.user.id
+        uploaded_file_listing = [workflow_file, data_file, instructions_file, layout_file]
 
         # Create a new project
         obj_project = project_components.Project(
@@ -71,7 +73,9 @@ def create(request: HttpRequest):
         
         # For each file, upload to the workflow
         workflow_dir_path = get_workflow_dir_path(obj_workflow=obj_workflow)
-        for f in [workflow_file, data_file, instructions_file, layout_file]:
+        for f in uploaded_file_listing:
+            if f is None:
+                continue
             file_path = workflow_dir_path.joinpath(f.name)
             extension = file_path.suffix
             file_type = None
@@ -224,7 +228,7 @@ def create(request: HttpRequest):
 def drive_by_curate(request: HttpRequest):
     """
     Drive by curate the incoming data
-    Inputs:
+    Inputs: (sent as JSON in the request body)
     1. Run ID (composite - user_id . project_id . workflow_id . run_id)
     2. <x, u, v> curations - each curation is a list of [x, v, u] where x is the external tuple id (coming from id_field_name of the data file), u is the worker id, and v is the annotation.
 
@@ -234,13 +238,15 @@ def drive_by_curate(request: HttpRequest):
     """
     try:
         # Capture the inputs
-        composite_run_id = request.POST.get('composite_run_id')
+        composite_run_id = request.POST.get('run_id')
         curations = request.POST.get('curations')
 
         # Parse the composite run id
         user_id, project_id, workflow_id, run_id = composite_run_id.split('.')
+        print(f"User ID: {user_id}, Project ID: {project_id}, Workflow ID: {workflow_id}, Run ID: {run_id}")
         # Parse the curations
         curations = json.loads(curations)
+        print(f"Curations: {curations}")
 
         # Figure out the sole 3a_kn(lm) job for this run
         obj_job = job_dao.find_3a_kn_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
@@ -248,6 +254,10 @@ def drive_by_curate(request: HttpRequest):
             obj_job = job_dao.find_3a_knlm_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
         if not obj_job:
             return JsonResponse({'status': 'error', 'message': 'No 3a_kn or 3a_knlm job found for this run'}, status=404)
+        
+        print(f"Found the 3a_kn or 3a_knlm job for this run")
+        print(f"Job: {obj_job}")
+        print(f"Job ID: {obj_job.id}")
         
         # Figure out the id_field_name from the workflow file
         workflow_files = workflow_dao.find_all_files(user_id=user_id, project_id=project_id, workflow_id=workflow_id)
@@ -257,26 +267,32 @@ def drive_by_curate(request: HttpRequest):
                 break
         if id_field_name is None:
             return JsonResponse({'status': 'error', 'message': 'No id_field_name found for this workflows data file.'}, status=404)
-    
+        print(f"Id field name: {id_field_name}")
+        
         # Insert the curations into the drive_by_curation_votes table where x goes to id_field_name and v goes to annotation and u goes to user_id
         job_dao.insert_drive_by_curation_votes(obj_job=obj_job, curations=curations, id_field_name=id_field_name)
+        print(f"Inserted the curations into the drive_by_curation_votes table")
 
         # Replace the worker_id with the user_id in all curations in-memory
         for curation in curations:
             curation[1] = user_id
-        
+        print(f"Replaced the worker_id with the user_id in all curations in-memory")
+        print(f"Curations: {curations}")
         # Create a job prefixed temp table to store the current annotations
         job_dao.create_temp_table(obj_job=obj_job, id_field_name=id_field_name)
         job_dao.insert_temp_curations(obj_job=obj_job, curations=curations, id_field_name=id_field_name)
         # Join the temp table with the tuples table to get the task_id vs worker_id vs annotation
         annotations = job_dao.join_temp_table_with_tuples(obj_job=obj_job, id_field_name=id_field_name)
+        print(f"Joined the temp table with the tuples table to get the task_id vs worker_id vs annotation")
+        print(f"Annotations: {annotations}")
 
         # Add these drive-by votes to the outputs table
         job_dao.add_drive_by_votes_to_outputs(obj_job=obj_job, curations=annotations)
+        print(f"Added the drive-by votes to the outputs table")
 
         # Aggregate these ad-hoc curations
         job_dao.aggregate_while_drive_by_curating(obj_job=obj_job, curations=annotations)
-
+        print(f"Aggregated the drive-by votes to the outputs table")
         # Destroy the temp table
         # job_dao.destroy_temp_table(obj_job=obj_job)
 
@@ -284,4 +300,88 @@ def drive_by_curate(request: HttpRequest):
 
     except Exception as e:
         print(f"Error during drive by curating: {e}")
+        print(f"Error details: {e.__traceback__}")
+        return JsonResponse({'status': 'error', 'message': f'Internal server error: {e}'}, status=500)
+
+def status(request: HttpRequest):
+    """
+    Get the status of a curation run
+    Inputs: Run ID (composite - user_id . project_id . workflow_id . run_id)
+    Outputs: Status of the run (COMPLETED, RUNNING, IDLE, ABORTED)
+    """
+    try:
+        # Capture the inputs
+        composite_run_id = request.GET.get('run_id', -1)
+        user_id, project_id, workflow_id, run_id = composite_run_id.split('.')
+
+        # Get the run
+        obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+        return JsonResponse({'run_status': obj_run.status}, status=200)
+    except Exception as e:
+        print(f"Error getting status of curation run: {e}")
+        return JsonResponse({'status': 'error', 'message': f'Internal server error: {e}'}, status=500)
+
+def download_tables(request: HttpRequest):
+    """
+    For the specified tables, export them from the database and return as csv files.
+    Inputs: 
+    1. Run ID (composite - user_id . project_id . workflow_id . run_id)
+    2. Table name(s):
+        a. Assignments
+        b. Annotations
+        c. Aggregations
+    Outputs: Files - csv files for the specified tables
+    """
+    try:
+        # Capture the inputs
+        composite_run_id = request.POST.get('run_id')
+        table_names = request.POST.get('table_names')   # list of table names
+
+        # Get the run
+        user_id, project_id, workflow_id, run_id = composite_run_id.split('.')
+        obj_run: run_components.Run = run_dao.find_run(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+        run_dir_path = get_run_dir_path(obj_run=obj_run)
+
+        # Get the 3a_kn or 3a_knlm job
+        obj_job = job_dao.find_3a_kn_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+        if not obj_job:
+            obj_job = job_dao.find_3a_knlm_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
+        if not obj_job:
+            return JsonResponse({'status': 'error', 'message': 'No 3a_kn or 3a_knlm job found for this run'}, status=404)
+
+        # Parse the table names
+        table_names = json.loads(table_names)
+        for table_name in table_names:
+            if table_name not in ['Assignments', 'Annotations', 'Aggregations']:
+                return JsonResponse({'status': 'error', 'message': 'Invalid table name'}, status=400)
+
+        in_memory_zip = io.BytesIO()
+        zip_filename = f"files.zip"
+        files_found = False
+        with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # Get the tables
+            for table_name in table_names:
+                if table_name == 'Assignments':
+                    export_table = get_job_prefix_table_name(obj_job=obj_job) + 'assignments'
+                elif table_name == 'Annotations':
+                    export_table = get_job_prefix_table_name(obj_job=obj_job) + 'outputs'
+                elif table_name == 'Aggregations':
+                    export_table = get_job_prefix_table_name(obj_job=obj_job) + 'final_labels'
+                # Export the table as a csv file
+                dest_file_name = table_name + '.csv'
+                dest_file_path = run_dir_path.joinpath(dest_file_name)
+                job_dao.create_file_from_table(source_table_name=export_table, destination_file_path=dest_file_path)
+
+                zf.write(dest_file_path, arcname=dest_file_name) # Add file to zip
+                files_found = True
+
+        # Return these files from the run directory
+        if not files_found:
+            return JsonResponse({'status': 'error', 'message': 'No tables found!'}, status=404)    
+        in_memory_zip.seek(0) # Rewind to the beginning of the stream
+        response = FileResponse(in_memory_zip, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+        return response
+    except Exception as e:
+        print(f"Error downloading tables: {e}")
         return JsonResponse({'status': 'error', 'message': f'Internal server error: {e}'}, status=500)

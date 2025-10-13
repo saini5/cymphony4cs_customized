@@ -1154,17 +1154,18 @@ def send_completion_notification(obj_run: run_components.Run):
 
     # 1. Construct the payload
     # Iterate on dir files
-    list_file_names = []
-    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
-    if run_dir_path.is_dir():
-        for file_path in run_dir_path.iterdir():
-            if file_path.is_file():
-                # add this file name and its path (with download link)
-                list_file_names.append(file_path.name)
+    # list_file_names = []
+    # run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+    # if run_dir_path.is_dir():
+    #     for file_path in run_dir_path.iterdir():
+    #         if file_path.is_file():
+    #             # add this file name and its path (with download link)
+    #             list_file_names.append(file_path.name)
+    composite_run_id = f"{obj_run.user_id}.{obj_run.project_id}.{obj_run.workflow_id}.{obj_run.id}"
     payload = {
-        'run_id': obj_run.id,
+        'run_id': composite_run_id,
         'status': obj_run.status,
-        'list_file_names': list_file_names,
+        # 'list_file_names': list_file_names,
         'completed_at': timezone.now().isoformat()
     }
     # Convert the payload to JSON
@@ -1183,13 +1184,13 @@ def send_completion_notification(obj_run: run_components.Run):
         response = requests.post(webhook_url, headers=headers, data=json_payload, timeout=30)
         # check for successful status codes 
         response.raise_for_status()
-        print(f"Successfully sent notification for run {obj_run.id} to {webhook_url}. Status: {response.status_code}")
+        print(f"Successfully sent notification for run {composite_run_id} to {webhook_url}. Status: {response.status_code}")
         return True
     except requests.exceptions.RequestException as e:
         # This is where an asynchronous retry mechanism should be triggered.
-        print(f"Failed to send notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        print(f"Failed to send notification for run {composite_run_id} to {webhook_url}. Error: {e}")
         return False
     except Exception as e:
-        print(f"Error sending completion notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        print(f"Error sending completion notification for run {composite_run_id} to {webhook_url}. Error: {e}")
         return False
 
