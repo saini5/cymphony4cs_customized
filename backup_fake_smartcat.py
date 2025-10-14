@@ -142,6 +142,20 @@ class CymphonyClient:
 
         response = self._post(endpoint, data=data_for_cymphony, is_json=False)
         return response['run_id']
+    
+    def create_simulated_run(self, project_id, workflow_id, run_name, run_description):
+        endpoint = f'/controller/?category=simulated_run&action=create&pid={project_id}&wid={workflow_id}'
+        data = {
+            's_r_name': run_name,
+            's_r_desc': run_description
+        }
+        response = self._post(endpoint, data=data, is_json=False)
+        return response['simulated_run_id'], response['job_info']
+    
+    def create_simulated_run_with_parameters(self, project_id, workflow_id, run_id, job_parameters):
+        endpoint = f'/controller/?category=simulated_run&action=create&pid={project_id}&wid={workflow_id}&rid={run_id}'
+        response = self._post(endpoint, data=job_parameters, is_json=False)
+        return response
 
     def get_run_status(self, project_id, workflow_id, run_id):
         endpoint = f'/controller/?category=run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'
