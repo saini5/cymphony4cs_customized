@@ -31,10 +31,19 @@ C. Simulate the run.
     b. Manually inspect the tables in postgres while the run is running to see the progress.
     c. Once the run is completed, inspect the tables again, and the statistics of the run.
     d. Copy paste the relevant files, run logs into an exps folder.
+
+D. Download the results.
+
+E. Inspect the results.
+1. Look at the final labels table.
+2. Join it with the starting data 
+3. Get the accuracy of the labels by comparing with the Match (gold_label) column.
 """
 
 from pathlib import Path
 import csv
+import pandas as pd
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, f1_score
 
 def prepare_data():
     # 1. Prepare the data
@@ -67,7 +76,7 @@ CYMPHONY_URL = 'http://127.0.0.1:8000' # Your Cymphony instance URL
 SMARTCAT_USERNAME = 'smartcat' # Cymphony user for Smartcat
 SMARTCAT_PASSWORD = 'smartcat_password' # Password for Smartcat user
 
-def prepare_run():
+def prepare_run(type='kn'):
     client = CymphonyClient(CYMPHONY_URL)
     client.login(SMARTCAT_USERNAME, SMARTCAT_PASSWORD)
     project_name = f"Smartcat_Bulk_Synthetic_Project_{int(time.time())}"
@@ -77,7 +86,10 @@ def prepare_run():
     workflow_description = "Workflow for Smartcat bulk curation experiments with synthetic workers"
     workflow_id = client.create_workflow(project_id, workflow_name, workflow_description)
     workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
-    client.upload_workflow_file(project_id, workflow_id, workflow_dir / "workflow.cy")
+    if type == 'knlm':
+        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "workflow_knlm.cy")
+    else:
+        client.upload_workflow_file(project_id, workflow_id, workflow_dir / "workflow.cy")
     client.upload_workflow_file(project_id, workflow_id, workflow_dir / "edi_preprocessed_data.csv")
     client.upload_workflow_file(project_id, workflow_id, workflow_dir / "instructions.html")
 
@@ -93,8 +105,71 @@ def simulate_run(project_id, workflow_id, run_id, job_parameters):
     return response
 
 
+def download_results(project_id, workflow_id, run_id, exp_dir):
+    client = CymphonyClient(CYMPHONY_URL)
+    client.login(SMARTCAT_USERNAME, SMARTCAT_PASSWORD)
+    response = client.get_simulated_run_status(project_id, workflow_id, run_id)
+    print(f"Response: {response}")
+    list_file_names = response.get('list_file_names')
+    if list_file_names:
+        for file_name in list_file_names:
+            file_content = client.download_file(project_id, workflow_id, run_id, file_name)
+            with open(exp_dir / file_name, 'wb') as f:
+                f.write(file_content)
+            print(f"Downloaded {file_name} to {exp_dir / file_name}")
+    else:
+        print("No file names received to download.")
+
+def inspect_results(project_id, workflow_id, run_id, exp_dir):
+    final_labels_file_path = exp_dir / "final_labels.csv"
+    final_labels_df = pd.read_csv(final_labels_file_path)
+    print(final_labels_df.head())
+    
+    original_data_file_path = exp_dir / "ORIGINAL_DATA"
+    original_data_df = pd.read_csv(original_data_file_path)
+    print(original_data_df.head())
+
+    # original_data_df = original_data_df.head(70)
+    # final_labels_df = final_labels_df.head(70)
+    # print(original_data_df)
+    # print(final_labels_df)
+
+    # join the final_labels_df with the original_data_df on the _id column
+    final_labels_df = final_labels_df.merge(original_data_df, on='_id', how='inner')
+    print(final_labels_df.head())
+    # print(final_labels_df)
+    print(final_labels_df.shape)
+    # get the accuracy of the labels by comparing with the Match (gold_label) column
+    accuracy = sum(final_labels_df['gold_label'] == final_labels_df['label']) / len(final_labels_df)
+    print('Accuracy: ', accuracy)
+    accuracy = accuracy_score(final_labels_df['gold_label'], final_labels_df['label'])
+    print('Accuracy: ', accuracy)
+    precision = precision_score(final_labels_df['gold_label'], final_labels_df['label'])
+    print('Precision: ', precision)
+    recall = recall_score(final_labels_df['gold_label'], final_labels_df['label'])
+    print('Recall: ', recall)
+    f1 = f1_score(final_labels_df['gold_label'], final_labels_df['label'])
+    print('F1 Score: ', f1)
+    cm = confusion_matrix(final_labels_df['gold_label'], final_labels_df['label'])
+    print('Confusion Matrix: ', cm)
+
+    TN, FP, FN, TP = cm.ravel()
+    print('TN: ', TN)
+    print('FP: ', FP)
+    print('FN: ', FN)
+    print('TP: ', TP)
+
+
+def get_statistics(project_id, workflow_id, run_id):
+    client = CymphonyClient(CYMPHONY_URL)
+    client.login(SMARTCAT_USERNAME, SMARTCAT_PASSWORD)
+    response = client.get_simulated_run_statistics(project_id, workflow_id, run_id)
+    print(f"Response: {response}")
+    return response
+
+
 if __name__ == "__main__":
-    project_id, workflow_id, run_id, job_info = prepare_run()
+    project_id, workflow_id, run_id, job_info = prepare_run(type='knlm')
 
     print(f"Run: {run_id}")
     print(f"Job info: {job_info}")
@@ -112,5 +187,18 @@ if __name__ == "__main__":
     }
     print(f"Job parameters: {job_parameters}")
 
+    time.sleep(30)
+
     response = simulate_run(project_id, workflow_id, run_id, job_parameters)
     print(f"Response: {response}")
+
+    # statistics = get_statistics(project_id, workflow_id, run_id)  # TODO: Cymphony side needs to be changed to respond with json response in case of api requests
+    # print(f"Statistics: {statistics.get('statistics')}")
+
+    # project_id, workflow_id, run_id = 46, 46, 58
+    # exp_dir = Path(f"fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow/exp_{project_id}_{workflow_id}_{run_id}")
+    # exp_dir.mkdir(parents=True, exist_ok=True)
+
+    # download_results(project_id, workflow_id, run_id, exp_dir)
+
+    # inspect_results(project_id, workflow_id, run_id, exp_dir)

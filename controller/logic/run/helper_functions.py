@@ -706,6 +706,12 @@ def simulate_workers_on_job(simulation_parameters_dict: dict, obj_job: job_compo
 
 def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_components.Job, size_data_job: int):
     """Simulating the working of one single synthetic worker"""
+    job_category = None
+    if obj_job.name == settings.HUMAN_OPERATORS[0]:    # 3a_kn job
+        job_category = 'job_3a_kn'
+    elif obj_job.name == settings.HUMAN_OPERATORS[2]:    # 3a_knlm job
+        job_category = 'job_3a_knlm'
+
     min_worker_annotation_time = int(simulation_parameters_dict['min_worker_annotation_time'])
     max_worker_annotation_time = int(simulation_parameters_dict['max_worker_annotation_time'])
     min_worker_accuracy = float(simulation_parameters_dict['min_worker_accuracy'])
@@ -766,7 +772,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
     call_dashboard(s, target_url)
 
     # 4. job index
-    job_index_url = target_url + '/controller/?category=job_3a_kn&action=index'
+    job_index_url = target_url + '/controller/?category=' + job_category + '&action=index'
     call_job_index(s, job_index_url)
 
     # basic computation for determining number of labels to match in simulation
@@ -784,7 +790,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
         # 5. call work on job
         start_ts = time.time_ns()
         work_on_job_url = target_url + \
-                          '/controller/?category=job_3a_kn&action=work&uid={0}&pid={1}&wid={2}&rid={3}&jid={4}'.format(
+                          '/controller/?category=' + job_category + '&action=work&uid={0}&pid={1}&wid={2}&rid={3}&jid={4}'.format(
                               obj_job.user_id, obj_job.project_id, obj_job.workflow_id, obj_job.run_id, obj_job.id
                           )
         call_work_on_job_response = call_work_on_job(
@@ -880,7 +886,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 total_annotated_so_far = total_annotated_so_far + 1
                 # send the label to annotate with as well
                 submit_start_ts = time.time_ns()
-                submit_annotation_url = target_url + '/controller/?category=job_3a_kn&action=process_annotation'
+                submit_annotation_url = target_url + '/controller/?category=' + job_category + '&action=process_annotation'
                 call_submit_annotation_response = call_submit_annotation(
                     s,
                     submit_annotation_url,

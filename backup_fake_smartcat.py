@@ -156,6 +156,15 @@ class CymphonyClient:
         endpoint = f'/controller/?category=simulated_run&action=create&pid={project_id}&wid={workflow_id}&rid={run_id}'
         response = self._post(endpoint, data=job_parameters, is_json=False)
         return response
+    
+    def get_simulated_run_status(self, project_id, workflow_id, run_id):
+        endpoint = f'/controller/?category=simulated_run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'
+        return self._get(endpoint)
+
+    def get_simulated_run_statistics(self, project_id, workflow_id, run_id):
+        endpoint = f'/controller/?category=simulated_run&action=view_statistics&pid={project_id}&wid={workflow_id}&rid={run_id}'
+        # TODO: Call needs to be changed on cymphony side to respond with json response in case of api requests
+        return self._get(endpoint)
 
     def get_run_status(self, project_id, workflow_id, run_id):
         endpoint = f'/controller/?category=run&action=view&pid={project_id}&wid={workflow_id}&rid={run_id}'

@@ -157,7 +157,7 @@ def create(request: HttpRequest):
                     project_id=project_id,
                     user_id=user_id
                 )
-                if obj_job.type == settings.OPERATOR_TYPES[1] and obj_job.name == settings.HUMAN_OPERATORS[0]: # human, and 3a_kn job
+                if obj_job.type == settings.OPERATOR_TYPES[1] and (obj_job.name == settings.HUMAN_OPERATORS[0] or obj_job.name == settings.HUMAN_OPERATORS[2]): # human, and (3a_kn job or 3a_knlm job)
                     node_bundle = {}
                     node_corresponding_to_job: run_components.Node = original_dag.search_node_by_id(node_id=node_id)
                     input_nodes: list = original_dag.get_incoming_nodes(node=node_corresponding_to_job)
@@ -247,7 +247,7 @@ def create(request: HttpRequest):
                     project_id=project_id,
                     user_id=user_id
                 )
-                if obj_job.type == settings.OPERATOR_TYPES[1] and obj_job.name == settings.HUMAN_OPERATORS[0]: # human, and 3a_kn job
+                if obj_job.type == settings.OPERATOR_TYPES[1] and (obj_job.name == settings.HUMAN_OPERATORS[0] or obj_job.name == settings.HUMAN_OPERATORS[2]): # human, and 3a_kn job or 3a_knlm job
                     job_simulation_params: dict = {}
                     min_loop_times_identifier = 'min_loop_times_job_' + str(job_id)
                     job_simulation_params['min_loop_times'] = request.POST[min_loop_times_identifier]
