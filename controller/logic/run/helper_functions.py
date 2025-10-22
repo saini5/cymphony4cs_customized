@@ -24,6 +24,7 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import copy, threading, time, random, base64, boto3
 import json
+from datetime import datetime
 
 
 def get_execution_order(copy_dag: run_components.DiGraph):
@@ -732,7 +733,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
     )
     s.mount(target_url, HTTPAdapter(max_retries=submit_retries))
     s.headers = {'User-Agent': settings.USER_AGENT}
-    user_name = 'synthetic_worker_' + str(user_number) + 'for_' + 'u_' + str(obj_job.user_id) + 'p_' + str(
+    user_name = 'syn_' + str(user_number) + '_' + str(datetime.now().strftime("%Y%m%d_%H%M%S")) + '_' + 'u_' + str(obj_job.user_id) + 'p_' + str(
         obj_job.project_id) + \
                 'w_' + str(obj_job.workflow_id) + 'r_' + str(obj_job.run_id) + 'j_' + str(obj_job.id)
     password = settings.SYNTHETIC_WORKER_PASSWORD
@@ -810,7 +811,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 worker_annotation_time=worker_annotation_time, obj_job=obj_job
             )
             # compute statistics of worker, pertaining to worker's interaction with cymphony
-            (precision, recall) = compute_worker_statistics(
+            (precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples) = compute_worker_statistics(
                 time_elapsed_first_assignment=time_elapsed_first_assignment,
                 total_submits_made=total_submits_made,
                 total_time_elapsed_all_submits=total_time_elapsed_all_submits,
@@ -822,8 +823,13 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
             )
             # store the above calculated worker statistics
             simulated_run_dao.store_statistics_worker_job(
-                worker_username=user_name, worker_precision=precision,
-                worker_recall=recall, obj_job=obj_job
+                worker_username=user_name, 
+                worker_precision=precision,
+                worker_recall=recall, 
+                total_matches_so_far=total_matches_so_far, 
+                total_annotated_so_far=total_annotated_so_far, 
+                total_size_tuples=total_size_tuples, 
+                obj_job=obj_job
             )
             # worker has finished interacting with cymphony
             # print("Thread finishing for worker with username: ", user_name)
@@ -909,7 +915,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                         worker_annotation_time=worker_annotation_time, obj_job=obj_job
                     )
                     # compute statistics of worker, pertaining to worker's interaction with cymphony
-                    (precision, recall) = compute_worker_statistics(
+                    (precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples) = compute_worker_statistics(
                         time_elapsed_first_assignment=time_elapsed_first_assignment,
                         total_submits_made=total_submits_made,
                         total_time_elapsed_all_submits=total_time_elapsed_all_submits,
@@ -921,8 +927,13 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                     )
                     # store the above calculated worker statistics
                     simulated_run_dao.store_statistics_worker_job(
-                        worker_username=user_name, worker_precision=precision,
-                        worker_recall=recall, obj_job=obj_job
+                        worker_username=user_name, 
+                        worker_precision=precision,
+                        worker_recall=recall, 
+                        total_matches_so_far=total_matches_so_far, 
+                        total_annotated_so_far=total_annotated_so_far, 
+                        total_size_tuples=total_size_tuples, 
+                        obj_job=obj_job
                     )
                     # worker has finished interacting with cymphony
                     # print("Thread finishing for worker with username: ", user_name)
@@ -1032,7 +1043,7 @@ def compute_worker_statistics(
     else:
         precision = -1.0
         print('Could not compute actual accuracy of worker because of 0 annotations.')
-    return precision, recall
+    return precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples
 
 
 def create_fernet_for_amt_credentials(obj_run: run_components.Run):

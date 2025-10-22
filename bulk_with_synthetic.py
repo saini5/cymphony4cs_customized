@@ -81,7 +81,7 @@ def prepare_run(type='kn'):
     client.login(SMARTCAT_USERNAME, SMARTCAT_PASSWORD)
     project_name = f"Smartcat_Bulk_Synthetic_Project_{int(time.time())}"
     project_description = "Project for Smartcat bulk curation experiments with synthetic workers"
-    project_id = client.create_project(project_name, project_description)
+    user_id, project_id = client.create_project(project_name, project_description)
     workflow_name = f"Smartcat_Bulk_Synthetic_Workflow_{int(time.time())}"
     workflow_description = "Workflow for Smartcat bulk curation experiments with synthetic workers"
     workflow_id = client.create_workflow(project_id, workflow_name, workflow_description)
@@ -96,7 +96,7 @@ def prepare_run(type='kn'):
     run_name = f"Smartcat_Bulk_Synthetic_Run_{int(time.time())}"
     run_description = "Run for Smartcat bulk curation experiments with synthetic workers"
     run_id, job_info = client.create_simulated_run(project_id, workflow_id, run_name, run_description)
-    return project_id, workflow_id, run_id, job_info
+    return user_id, project_id, workflow_id, run_id, job_info
 
 def simulate_run(project_id, workflow_id, run_id, job_parameters):
     client = CymphonyClient(CYMPHONY_URL)
@@ -140,16 +140,18 @@ def inspect_results(project_id, workflow_id, run_id, exp_dir):
     # print(final_labels_df)
     print(final_labels_df.shape)
     # get the accuracy of the labels by comparing with the Match (gold_label) column
-    accuracy = sum(final_labels_df['gold_label'] == final_labels_df['label']) / len(final_labels_df)
-    print('Accuracy: ', accuracy)
+    numerator = sum(final_labels_df['gold_label'] == final_labels_df['label'])
+    denominator = len(final_labels_df)
+    accuracy = numerator / denominator
+    print(f'Accuracy = {numerator} / {denominator} = {accuracy}')
     accuracy = accuracy_score(final_labels_df['gold_label'], final_labels_df['label'])
     print('Accuracy: ', accuracy)
-    precision = precision_score(final_labels_df['gold_label'], final_labels_df['label'])
-    print('Precision: ', precision)
-    recall = recall_score(final_labels_df['gold_label'], final_labels_df['label'])
-    print('Recall: ', recall)
-    f1 = f1_score(final_labels_df['gold_label'], final_labels_df['label'])
-    print('F1 Score: ', f1)
+    # precision = precision_score(final_labels_df['gold_label'], final_labels_df['label'])
+    # print('Precision: ', precision)
+    # recall = recall_score(final_labels_df['gold_label'], final_labels_df['label'])
+    # print('Recall: ', recall)
+    # f1 = f1_score(final_labels_df['gold_label'], final_labels_df['label'])
+    # print('F1 Score: ', f1)
     cm = confusion_matrix(final_labels_df['gold_label'], final_labels_df['label'])
     print('Confusion Matrix: ', cm)
 
@@ -158,6 +160,19 @@ def inspect_results(project_id, workflow_id, run_id, exp_dir):
     print('FP: ', FP)
     print('FN: ', FN)
     print('TP: ', TP)
+
+    # show those rows where final_labels_df gold_label is not equal to label
+    failures = final_labels_df[final_labels_df['gold_label'] != final_labels_df['label']]
+    print('All failures: ', failures.shape)
+    print(failures.head())
+    print(failures)
+    failures_fp = failures[failures['gold_label'] == 0.0]
+    print('FP failures: ', failures_fp.shape)
+    print(failures_fp.head())
+    failures_fn = failures[failures['gold_label'] == 1.0]
+    print('FN failures: ', failures_fn.shape)
+    print(failures_fn.head())
+
 
 
 def get_statistics(project_id, workflow_id, run_id):
@@ -169,7 +184,7 @@ def get_statistics(project_id, workflow_id, run_id):
 
 
 if __name__ == "__main__":
-    project_id, workflow_id, run_id, job_info = prepare_run(type='knlm')
+    user_id, project_id, workflow_id, run_id, job_info = prepare_run(type='knlm')
 
     print(f"Run: {run_id}")
     print(f"Job info: {job_info}")
@@ -181,8 +196,8 @@ if __name__ == "__main__":
     job_parameters = {
         'min_loop_times_job_' + job_id: '100', 'max_loop_times_job_' + job_id: '100',
         'min_workers_per_burst_job_' + job_id: '1', 'max_workers_per_burst_job_' + job_id: '1',
-        'min_time_gap_in_loop_points_job_' + job_id: '5', 'max_time_gap_in_loop_points_job_' + job_id: '5',
-        'min_worker_annotation_time_job_' + job_id: '1', 'max_worker_annotation_time_job_' + job_id: '1',
+        'min_time_gap_in_loop_points_job_' + job_id: '120', 'max_time_gap_in_loop_points_job_' + job_id: '120',
+        'min_worker_annotation_time_job_' + job_id: '10', 'max_worker_annotation_time_job_' + job_id: '10',
         'min_worker_accuracy_job_' + job_id: '0.8', 'max_worker_accuracy_job_' + job_id: '0.85'
     }
     print(f"Job parameters: {job_parameters}")
@@ -192,11 +207,18 @@ if __name__ == "__main__":
     response = simulate_run(project_id, workflow_id, run_id, job_parameters)
     print(f"Response: {response}")
 
+    # Simulate stewards via simulate_stewards.py
+    workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
+    data_file_path = workflow_dir / "edi_preprocessed_data.csv"
+    size_data_job = len(pd.read_csv(data_file_path))
+    print('Size of data pushed in job: ', size_data_job)
+    print('Requester ID: ', user_id)
+
     # statistics = get_statistics(project_id, workflow_id, run_id)  # TODO: Cymphony side needs to be changed to respond with json response in case of api requests
     # print(f"Statistics: {statistics.get('statistics')}")
 
-    # project_id, workflow_id, run_id = 46, 46, 58
-    # exp_dir = Path(f"fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow/exp_{project_id}_{workflow_id}_{run_id}")
+    # project_id, workflow_id, run_id = 65, 64, 76
+    # exp_dir = Path(f"fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow/exp_12_{project_id}_{workflow_id}_{run_id}")
     # exp_dir.mkdir(parents=True, exist_ok=True)
 
     # download_results(project_id, workflow_id, run_id, exp_dir)

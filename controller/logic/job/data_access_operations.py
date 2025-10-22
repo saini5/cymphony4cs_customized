@@ -1317,6 +1317,7 @@ def bookkeeping_and_aggregate_for_regular_workers(obj_job: job_components.Job, t
             job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
             table_tasks = job_prefix_table_name + "tasks"
             table_outputs = job_prefix_table_name + "outputs"
+            table_final_labels = job_prefix_table_name + "final_labels"
 
             # print('worker ', worker_id, ' fetching task', task_id, ' in lock from tasks table')
             cursor.execute(
@@ -1335,6 +1336,16 @@ def bookkeeping_and_aggregate_for_regular_workers(obj_job: job_components.Job, t
                 " (_id, annotation, worker_id) VALUES (%s, %s, %s)",
                 [task_id, answer, worker_id]
             )
+
+            # If the task_id is already in the final_labels table, skip it.
+            cursor.execute(
+                "SELECT _id FROM " + table_final_labels +
+                " WHERE _id = %s",
+                [task_id]
+            )
+            existing_final_label = cursor.fetchone()
+            if existing_final_label:
+                return
 
             # aggregate start
             task_id = task[0]

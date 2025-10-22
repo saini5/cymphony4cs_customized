@@ -359,7 +359,7 @@ def load_parameters_worker_job(obj_job: job_components.Job, worker_username: str
         cursor.close()
 
 
-def store_statistics_worker_job(worker_username: str, worker_precision: float, worker_recall: float, obj_job: job_components.Job):
+def store_statistics_worker_job(worker_username: str, worker_precision: float, worker_recall: float, total_matches_so_far: int, total_annotated_so_far: int, total_size_tuples: int, obj_job: job_components.Job):
     """Store the worker parameters in db i.e. store statistics of a worker hitting a simulated job"""
     # cursor, con = get_client_side_cursor_and_connection()
     cursor = connection.cursor()
@@ -369,11 +369,14 @@ def store_statistics_worker_job(worker_username: str, worker_precision: float, w
         # add entry to table_statistics_workers
         cursor.execute(
             "INSERT into " + table_statistics_workers +
-            " (worker_username, worker_precision, worker_recall) VALUES (%s, %s, %s)",
+            " (worker_username, worker_precision, worker_recall, total_matches, total_annotated, total_tuples) VALUES (%s, %s, %s, %s, %s, %s)",
             [
                 worker_username,
                 worker_precision,
-                worker_recall
+                worker_recall,
+                total_matches_so_far,
+                total_annotated_so_far,
+                total_size_tuples
             ]
         )
         # con.commit()

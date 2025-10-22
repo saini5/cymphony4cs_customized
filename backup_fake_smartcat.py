@@ -97,7 +97,7 @@ class CymphonyClient:
         endpoint = '/controller/?category=project&action=create'
         data = {'pname': project_name, 'pdesc': project_description}
         response = self._post(endpoint, data)
-        return response['project_id']
+        return response['user_id'], response['project_id']
 
     def create_workflow(self, project_id, workflow_name, workflow_description):
         endpoint = f'/controller/?category=workflow&action=create&pid={project_id}'
