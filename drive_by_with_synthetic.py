@@ -4,6 +4,7 @@
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+# The flask import is part of the conda environment setup, so it's not a direct dependency in requirements.txt
 from flask import Flask, request, jsonify
 import threading
 import time
@@ -151,28 +152,42 @@ class CymphonyClient:
         logger.info(f"Received the zip contents from Cymphony")
         return contents
 
-def generate_random_curations(data_csv_path: Path, id_field_name: str, num_curations: int):
-    """Generates random annotations for tuples from a CSV file. No Pandas required."""
+def simulate_worker(worker_id: int, data_csv_path: Path, id_field_name: str, annotation_time: int, accuracy: float, num_annotations: int, gold_label_column_name: str, domain_answer_options: list):
+    """Simulates a worker's annotation of a given number of tuples from the data file."""
     if not data_csv_path.exists():
         raise FileNotFoundError(f"Data CSV file not found at {data_csv_path}")
     
     with open(data_csv_path, 'r') as f:
         reader = csv.DictReader(f)
-        # Store all rows (dictionaries) in a list
-        all_rows = list(reader) # Implicitly skips the header row
+        all_rows = list(reader) # implicitly skips header row
         curations = []
-        # Check if there are any rows to pick from
-        if all_rows and len(all_rows) >= num_curations:
-            for _ in range(num_curations):
-                # Randomly select a random row
-                random_dict_row = random.choice(all_rows)
-                # Extract the value of the id_field_name
-                id = random_dict_row[id_field_name]
-                worker_id = random.choice([x for x in range(1, 100000)])
-                annotation = random.choice(['Yes', 'No', 'Cannot Determine'])
+
+        if all_rows and len(all_rows) >= num_annotations:
+            # Select num_annotations unique rows to be annotated
+            selected_rows = random.sample(all_rows, num_annotations)
+
+            # Determine correctness for each annotation
+            num_correct_annotations = int(num_annotations * accuracy)
+            num_incorrect_annotations = num_annotations - num_correct_annotations
+            is_correct_list = [True] * num_correct_annotations + [False] * num_incorrect_annotations
+            random.shuffle(is_correct_list)
+
+            for i, row_to_annotate in enumerate(selected_rows):
+                id = row_to_annotate[id_field_name]
+                is_correct = is_correct_list[i]
+
+                if is_correct:
+                    annotation = row_to_annotate[gold_label_column_name]
+                else:
+                    possible_wrong_annotations = [a for a in domain_answer_options if a != row_to_annotate[gold_label_column_name]]
+                    # Handle case where there are no other annotation choices
+                    if not possible_wrong_annotations:
+                        annotation = row_to_annotate[gold_label_column_name] # Fallback to correct if no other choice
+                    else:
+                        annotation = random.choice(possible_wrong_annotations)
                 curations.append([id, worker_id, annotation])
         else:
-            raise ValueError(f"No rows found in the data CSV file at {data_csv_path}")
+            raise ValueError(f"Not enough rows found in the data CSV file at {data_csv_path} for {num_annotations} annotations.")
     return curations
 
 # --- Main Simulation Logic ---
@@ -190,10 +205,10 @@ def simulate_drive_by_curation():
         time.sleep(2)
 
         # 2. SC creates a curation run
-        workflow_dir = Path("fake-smartcat-exps/drive-by-curation/test-workflow")
+        workflow_dir = Path("fake-smartcat-exps/drive-by-curation/synthetic-workers/workflow/")
         dict_file_paths = {
             'workflow_file': workflow_dir / "workflow.cy",
-            'data_file': workflow_dir / "data.csv",
+            'data_file': workflow_dir / "edi_preprocessed_data.csv",
             'instructions_file': workflow_dir / "instructions.html"
         }
         data_file_id_field_name = "id"
@@ -206,18 +221,30 @@ def simulate_drive_by_curation():
         # 3. SC sends ad-hoc curations
 
         # Setting up the curations
-        num_curations_to_send = 2
-        logger.info(f"Starting drive-by curation: sending {num_curations_to_send} ad-hoc annotations...")
-        curations_data = generate_random_curations(
-            dict_file_paths['data_file'], 
-            data_file_id_field_name, 
-            num_curations_to_send
-        )
-        drive_by_response = client.send_ad_hoc_curations(run_id, curations_data)
-        if drive_by_response['status'] == 'success':
-            logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
-        else:
-            logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
+        num_workers = 50
+        time_gap_between_workers = 120 # 2 minutes
+        for worker_id in range(num_workers):
+            logger.info(f"Starting drive-by curation for worker {worker_id}...")
+            curations_data = simulate_worker(
+                worker_id=worker_id,
+                data_csv_path=dict_file_paths['data_file'], 
+                id_field_name=data_file_id_field_name, 
+                annotation_time=10,
+                accuracy=random.uniform(0.8, 0.85), 
+                num_annotations=10,
+                gold_label_column_name="gold_label", 
+                domain_answer_options=['0.0', '1.0'] 
+            )
+            logger.info(f"Curations generated for worker {worker_id}: {curations_data}")
+            
+            logger.info(f"Sending ad-hoc curations for worker {worker_id} to Cymphony...")
+            drive_by_response = client.send_ad_hoc_curations(run_id, curations_data)
+            if drive_by_response['status'] == 'success':
+                logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
+            else:
+                logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
+            
+            time.sleep(time_gap_between_workers)
         
         time.sleep(30)
 
@@ -231,7 +258,8 @@ def simulate_drive_by_curation():
         table_names = ['Assignments', 'Annotations', 'Aggregations']
         download_tables_contents = client.download_tables(run_id, table_names)
         # save the zip contents
-        download_tables_dir = Path("fake-smartcat-exps/drive-by-curation/test-workflow")
+        download_tables_dir = Path(f"fake-smartcat-exps/drive-by-curation/synthetic-workers/exp_{run_id}_{time.strftime('%Y%m%d%H%M%S')}")
+        download_tables_dir.mkdir(parents=True, exist_ok=True)
         zip_file_path = download_tables_dir / f"tables_{run_id}_{int(time.time())}.zip"
         with open(zip_file_path, 'wb') as f:
             f.write(download_tables_contents)
@@ -253,3 +281,71 @@ if __name__ == "__main__":
     simulate_drive_by_curation()
     
     logger.info("--- Fake Smartcat Simulation Complete ---")
+
+
+"""
+
+Appendix: 
+
+SQL Queries to analyze the tables in postgres:
+-- Number of workers:
+SELECT COUNT(DISTINCT worker_id) FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes; -- 50
+
+-- Number of votes per worker: min, max, avg
+SELECT min(O.c), max(O.c), avg(O.c) FROM (SELECT count(annotation) as c FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes group by worker_id) O	-- 10,10,10
+
+-- Worker precision (matches / annotated)
+--- avg worker precision
+select COUNT(*) as total_matches FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes D, public.u12_p68_w67_r79_j236_tuples T where D.id = T.id and D.annotation = T.gold_label	--400
+SELECT COUNT(*) as total_annotations FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes D -- (or outputs is also fine)	-- 500
+-- overall precision = total_matches / total_annotations
+-- min, max preicison of a worker, and how much.
+SELECT 
+	(A.matches_per_worker * 1.0) / (B.annotations_per_worker) as precision, A.matches_per_worker, B.annotations_per_worker, A.worker_id, B.worker_id
+FROM 
+	(select COUNT(*) as matches_per_worker, D.worker_id as worker_id FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes D, public.u12_p68_w67_r79_j236_tuples T where D.id = T.id and D.annotation = T.gold_label GROUP BY D.worker_id) A, 
+	(SELECT COUNT(*) as annotations_per_worker, worker_id FROM public.u12_p68_w67_r79_j236_drive_by_curation_votes GROUP BY worker_id) B
+WHERE A.worker_id = B.worker_id
+ORDER BY precision DESC	-- 8 out of 10 for everyone (0.80)
+
+-- number of tuples labeled
+--- distinct
+SELECT COUNT(DISTINCT _id) FROM public.u12_p68_w67_r79_j236_outputs;	--463
+--- total tuples labeled
+SELECT COUNT( _id) FROM public.u12_p68_w67_r79_j236_outputs; -- 500
+
+-- number of tuples only partially voted (no final label)
+select DISTINCT _id FROM public.u12_p68_w67_r79_j236_outputs where public.u12_p68_w67_r79_j236_outputs._id NOT IN (select _id FROM public.u12_p68_w67_r79_j236_final_labels)	--440
+
+--- tuples with no final label but multiple votes (optional)
+select _id, count(annotation) FROM public.u12_p68_w67_r79_j236_outputs where public.u12_p68_w67_r79_j236_outputs._id NOT IN (select _id FROM public.u12_p68_w67_r79_j236_final_labels) GROUP BY _id having count(annotation) > 1 --12
+
+-- number of tuples that got final votes
+select COUNT( _id) FROM public.u12_p68_w67_r79_j236_final_labels --23 (same result with distinct of course)
+
+-- how many final votes are yes, no, undecided?
+SELECT label, COUNT(label) FROM public.u12_p68_w67_r79_j236_final_labels group by label -- 0.0: 5, 1.0: 18
+
+-- TP
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F, public.u12_p68_w67_r79_j236_tuples T where F._id = T._id and F.label = T.gold_label AND F.label = '1.0' --18
+
+-- FP
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F, public.u12_p68_w67_r79_j236_tuples T where F._id = T._id and F.label != T.gold_label AND F.label = '1.0' --0
+
+-- FN
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F, public.u12_p68_w67_r79_j236_tuples T where F._id = T._id and F.label != T.gold_label AND F.label = '0.0' --2
+
+-- TN
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F, public.u12_p68_w67_r79_j236_tuples T where F._id = T._id and F.label = T.gold_label AND F.label = '0.0' --3
+
+-- overall precision, recall
+--- correct preds
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F, public.u12_p68_w67_r79_j236_tuples T where F._id = T._id and F.label = T.gold_label; --21
+--- total preds
+SELECT COUNT(*) FROM public.u12_p68_w67_r79_j236_final_labels F --23
+
+
+
+
+
+"""

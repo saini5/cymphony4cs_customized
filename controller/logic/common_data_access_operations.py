@@ -17,14 +17,20 @@ def dict_fetchall(cursor):
     At a small performance and memory cost, you can return results as a dict by using something like this:
     Source : https://docs.djangoproject.com/en/3.1/topics/db/sql/
     """
+    rows = cursor.fetchall()
+    if rows is None:
+        return []
     columns = [col[0] for col in cursor.description]
     return [
         dict(zip(columns, row))
-        for row in cursor.fetchall()
+        for row in rows
     ]
 
 
 def dict_fetchone(cursor):
     """Return a row from a cursor as a dict"""
+    row = cursor.fetchone()
+    if row is None:
+        return None
     columns = [col[0] for col in cursor.description]
-    return dict(zip(columns, cursor.fetchone()))
+    return dict(zip(columns, row))

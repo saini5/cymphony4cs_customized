@@ -8,6 +8,7 @@ from controller.logic.run import business_logic as run_logic
 from controller.logic.simulated_run import business_logic as simulated_run_logic
 from controller.logic.pipelined_simulated_run import business_logic as pipelined_simulated_run_logic
 from controller.logic.job import business_logic as job_logic
+from controller.logic.curation_run import business_logic as curation_run_logic
 
 from controller.enums import UserType
 
@@ -105,5 +106,14 @@ def process(request):
             return simulated_run_logic.view(request)
         elif action == 'download_file':
             pass
+    elif action_category == 'curation_run':
+        if action == 'create':
+            return curation_run_logic.create(request)
+        elif action == 'drive_by_curate':
+            return curation_run_logic.drive_by_curate(request)
+        elif action == 'status':
+            return curation_run_logic.status(request)
+        elif action == 'download_tables':
+            return curation_run_logic.download_tables(request)
 
     return HttpResponse('Invalid request: ', request.path + action_category + action)

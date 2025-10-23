@@ -375,3 +375,4 @@ LOGGING = {
     },
 }
 
+ID_FIELD_NAME = 'id_field_name'

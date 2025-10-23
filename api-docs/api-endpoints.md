@@ -727,3 +727,168 @@ file.close()
 
 ### Additional remarks
 - None.
+
+## Endpoint: `/controller/?category=curation_run&action=create`
+
+### Request Method
+
+`POST`
+
+### Request Parameters
+
+- `workflow_file` (file): The workflow definition file (`.cy`).
+- `data_file` (file): The data file (`.csv`) containing items to be curated.
+- `id_field_name` (string): The name of the ID field in the `data_file` that uniquely identifies each tuple.
+- `instructions_file` (file): The HTML file containing instructions for curators.
+- `layout_file` (file): The HTML file defining the layout of the curation interface.
+- `notification_url` (string, optional): A URL to which Cymphony will send a POST request upon run completion.
+
+### Request and Response Formats
+
+- Request format: Multipart/Form-Data
+- Response format: JSON
+```json
+{
+    "status": "success",
+    "message": "Curation run created",
+    "run_id": "user_id.project_id.workflow_id.run_id"
+}
+```
+
+### Error Handling
+
+- In case of any error, the response will contain a JSON object with the following format:
+```json
+{
+    "status": "error",
+    "message": "Error message"
+}
+```
+
+### Authentication and Authorization
+
+- To access this endpoint, the client must provide valid authentication credentials.
+
+### Examples
+
+```python
+# Construct the URL for the curation run creation endpoint
+create_curation_run_url = target_url + '/controller/?category=curation_run&action=create'
+
+# Define the paths to the workflow files
+workflow_dir = Path("fake-smartcat-exps/bulk-curation/test-workflow")
+dict_file_paths = {
+    'workflow_file': workflow_dir / "workflow.cy",
+    'data_file': workflow_dir / "data.csv",
+    'instructions_file': workflow_dir / "instructions.html",
+    'layout_file': workflow_dir / "layout.html"
+}
+
+# Open the files in binary mode
+dict_files = dict()
+for key, value in dict_file_paths.items():
+    dict_files[key] = open(value, 'rb')
+
+# Define other form data
+data_file_id_field_name = "smartcat_id"
+notification_url = "http://localhost:5000/webhook" # Replace with actual webhook URL
+form_data = {
+    'id_field_name': data_file_id_field_name,
+    'notification_url': notification_url
+}
+
+# Send a POST request to the API with the form data and files
+create_curation_run_response = s.post(create_curation_run_url, data=form_data, files=dict_files)
+
+# Close the opened files
+for f_obj in dict_files.values():
+    f_obj.close()
+
+# Print the response content
+print(create_curation_run_response.content)
+
+# Extract the composite run ID from the response
+composite_run_id = create_curation_run_response.json().get('run_id')
+```
+
+### Additional remarks
+
+- This endpoint is used by external systems like Smartcat to initiate a bulk curation process by providing all necessary workflow and data files, along with an optional notification URL for completion callbacks.
+
+
+## Endpoint: `/controller/?category=curation_run&action=drive_by_curate`
+
+### Request Method
+
+`POST`
+
+### Request Parameters
+
+- `run_id` (string): The composite run ID (e.g., `user_id.project_id.workflow_id.run_id`) to which these curations belong.
+- `curations` (JSON array of arrays): A list of ad-hoc curations, where each curation is `[external_tuple_id, worker_id, annotation]`.
+
+### Request and Response Formats
+
+- Request format: JSON
+```json
+{
+    "run_id": "user_id.project_id.workflow_id.run_id",
+    "curations": [
+        ["external_id_1", 123, "annotation_A"],
+        ["external_id_2", 124, "annotation_B"]
+    ]
+}
+```
+- Response format: JSON
+```json
+{
+    "status": "success",
+    "message": "Drive by curations received and processed"
+}
+```
+
+### Error Handling
+
+- In case of any error, the response will contain a JSON object with the following format:
+```json
+{
+    "status": "error",
+    "message": "Error message"
+}
+```
+
+### Authentication and Authorization
+
+- To access this endpoint, the client must provide valid authentication credentials.
+
+### Examples
+
+```python
+# Define the API endpoint URL for sending ad-hoc curations
+drive_by_curate_url = target_url + '/controller/?category=curation_run&action=drive_by_curate'
+
+# Replace with the actual composite run ID from the initial curation run creation
+composite_run_id_for_curation = "user_id.project_id.workflow_id.run_id" # This should be obtained from client.create_curation_run
+
+# Example curations data
+curations_data_example = [
+    ["item_a", 99999, "Yes"],
+    ["item_b", 99996, "No"]
+]
+
+# Prepare the data to be sent as JSON
+drive_by_data = {
+    'run_id': composite_run_id_for_curation,
+    'curations': curations_data_example
+}
+
+# Send a POST request with JSON data
+drive_by_response = s.post(drive_by_curate_url, json=drive_by_data)
+
+# Print the response content
+print(drive_by_response.content)
+```
+
+### Additional remarks
+
+- This endpoint allows external systems to send ad-hoc annotations for tasks within an existing curation run. These annotations are recorded and trigger aggregation if the tasks are ready.

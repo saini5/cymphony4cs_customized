@@ -21,7 +21,8 @@ def process_3a_kn(
         configuration: dict,
         obj_job: job_components.Job,
         annotations_per_tuple_per_worker_table_name: str,
-        aggregated_annotations_table_name: str
+        aggregated_annotations_table_name: str,
+        id_field_name: str=None
 ):
     """Prepare 3a_kn job so workers can work on it."""
     # job submitted to cymphony jobs dashboard for workers to annotate
@@ -37,7 +38,8 @@ def process_3a_kn(
         configuration=configuration,
         obj_job=obj_job,
         annotations_per_tuple_per_worker_table_name=annotations_per_tuple_per_worker_table_name,
-        aggregated_annotations_table_name=aggregated_annotations_table_name
+        aggregated_annotations_table_name=aggregated_annotations_table_name,
+        id_field_name=id_field_name
     )
     # check if data is present
     tuple_header = job_dao.get_data_headers_for_job(obj_job=obj_job)

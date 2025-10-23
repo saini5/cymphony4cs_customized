@@ -51,7 +51,8 @@ def create(request: HttpRequest):
         context = {
             'section': 'requester',
             'project_id': obj_project.id,
-            'project_name': obj_project.name
+            'project_name': obj_project.name,
+            'user_id': obj_project.user_id
         }
         # for api requests such as by external web client
         if 'python' in request.headers.get('User-Agent'):

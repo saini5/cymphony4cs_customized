@@ -24,6 +24,7 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import copy, threading, time, random, base64, boto3
 import json
+from datetime import datetime
 
 
 def get_execution_order(copy_dag: run_components.DiGraph):
@@ -285,7 +286,8 @@ def progress_dag(
         obj_run: run_components.Run,
         original_dag: run_components.DiGraph,
         operator_nodes_in_execution_order: list,
-        mapping_node_id_vs_job_id: dict
+        mapping_node_id_vs_job_id: dict,
+        id_field_name: str=None
 ):
     """Execute dag based on the execution order"""
     run_prefix_table_name = get_run_prefix_table_name(obj_run=obj_run)
@@ -318,7 +320,8 @@ def progress_dag(
                 obj_job=obj_job,
                 annotations_per_tuple_per_worker_table_name=information.get(
                     'annotations_per_tuple_per_worker_table_name'),
-                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name')
+                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name'),
+                id_field_name=id_field_name
             )
             if submitted:   # job submitted to cymphony dashboard
                 # if run is a simulation run, simulate workers on this 3a_kn job
@@ -364,7 +367,8 @@ def progress_dag(
                 obj_job=obj_job,
                 annotations_per_tuple_per_worker_table_name=information.get(
                     'annotations_per_tuple_per_worker_table_name'),
-                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name')
+                aggregated_annotations_table_name=information.get('aggregated_annotations_table_name'),
+                id_field_name=id_field_name
             )
             if submitted:   # job submitted to cymphony dashboard
                 # if run is a simulation run, simulate workers on this 3a_knlm job
@@ -703,6 +707,12 @@ def simulate_workers_on_job(simulation_parameters_dict: dict, obj_job: job_compo
 
 def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_components.Job, size_data_job: int):
     """Simulating the working of one single synthetic worker"""
+    job_category = None
+    if obj_job.name == settings.HUMAN_OPERATORS[0]:    # 3a_kn job
+        job_category = 'job_3a_kn'
+    elif obj_job.name == settings.HUMAN_OPERATORS[2]:    # 3a_knlm job
+        job_category = 'job_3a_knlm'
+
     min_worker_annotation_time = int(simulation_parameters_dict['min_worker_annotation_time'])
     max_worker_annotation_time = int(simulation_parameters_dict['max_worker_annotation_time'])
     min_worker_accuracy = float(simulation_parameters_dict['min_worker_accuracy'])
@@ -723,7 +733,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
     )
     s.mount(target_url, HTTPAdapter(max_retries=submit_retries))
     s.headers = {'User-Agent': settings.USER_AGENT}
-    user_name = 'synthetic_worker_' + str(user_number) + 'for_' + 'u_' + str(obj_job.user_id) + 'p_' + str(
+    user_name = 'syn_' + str(user_number) + '_' + str(datetime.now().strftime("%Y%m%d_%H%M%S")) + '_' + 'u_' + str(obj_job.user_id) + 'p_' + str(
         obj_job.project_id) + \
                 'w_' + str(obj_job.workflow_id) + 'r_' + str(obj_job.run_id) + 'j_' + str(obj_job.id)
     password = settings.SYNTHETIC_WORKER_PASSWORD
@@ -763,7 +773,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
     call_dashboard(s, target_url)
 
     # 4. job index
-    job_index_url = target_url + '/controller/?category=job_3a_kn&action=index'
+    job_index_url = target_url + '/controller/?category=' + job_category + '&action=index'
     call_job_index(s, job_index_url)
 
     # basic computation for determining number of labels to match in simulation
@@ -781,7 +791,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
         # 5. call work on job
         start_ts = time.time_ns()
         work_on_job_url = target_url + \
-                          '/controller/?category=job_3a_kn&action=work&uid={0}&pid={1}&wid={2}&rid={3}&jid={4}'.format(
+                          '/controller/?category=' + job_category + '&action=work&uid={0}&pid={1}&wid={2}&rid={3}&jid={4}'.format(
                               obj_job.user_id, obj_job.project_id, obj_job.workflow_id, obj_job.run_id, obj_job.id
                           )
         call_work_on_job_response = call_work_on_job(
@@ -801,7 +811,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 worker_annotation_time=worker_annotation_time, obj_job=obj_job
             )
             # compute statistics of worker, pertaining to worker's interaction with cymphony
-            (precision, recall) = compute_worker_statistics(
+            (precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples) = compute_worker_statistics(
                 time_elapsed_first_assignment=time_elapsed_first_assignment,
                 total_submits_made=total_submits_made,
                 total_time_elapsed_all_submits=total_time_elapsed_all_submits,
@@ -813,8 +823,13 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
             )
             # store the above calculated worker statistics
             simulated_run_dao.store_statistics_worker_job(
-                worker_username=user_name, worker_precision=precision,
-                worker_recall=recall, obj_job=obj_job
+                worker_username=user_name, 
+                worker_precision=precision,
+                worker_recall=recall, 
+                total_matches_so_far=total_matches_so_far, 
+                total_annotated_so_far=total_annotated_so_far, 
+                total_size_tuples=total_size_tuples, 
+                obj_job=obj_job
             )
             # worker has finished interacting with cymphony
             # print("Thread finishing for worker with username: ", user_name)
@@ -877,7 +892,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 total_annotated_so_far = total_annotated_so_far + 1
                 # send the label to annotate with as well
                 submit_start_ts = time.time_ns()
-                submit_annotation_url = target_url + '/controller/?category=job_3a_kn&action=process_annotation'
+                submit_annotation_url = target_url + '/controller/?category=' + job_category + '&action=process_annotation'
                 call_submit_annotation_response = call_submit_annotation(
                     s,
                     submit_annotation_url,
@@ -900,7 +915,7 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                         worker_annotation_time=worker_annotation_time, obj_job=obj_job
                     )
                     # compute statistics of worker, pertaining to worker's interaction with cymphony
-                    (precision, recall) = compute_worker_statistics(
+                    (precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples) = compute_worker_statistics(
                         time_elapsed_first_assignment=time_elapsed_first_assignment,
                         total_submits_made=total_submits_made,
                         total_time_elapsed_all_submits=total_time_elapsed_all_submits,
@@ -912,8 +927,13 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                     )
                     # store the above calculated worker statistics
                     simulated_run_dao.store_statistics_worker_job(
-                        worker_username=user_name, worker_precision=precision,
-                        worker_recall=recall, obj_job=obj_job
+                        worker_username=user_name, 
+                        worker_precision=precision,
+                        worker_recall=recall, 
+                        total_matches_so_far=total_matches_so_far, 
+                        total_annotated_so_far=total_annotated_so_far, 
+                        total_size_tuples=total_size_tuples, 
+                        obj_job=obj_job
                     )
                     # worker has finished interacting with cymphony
                     # print("Thread finishing for worker with username: ", user_name)
@@ -1023,7 +1043,7 @@ def compute_worker_statistics(
     else:
         precision = -1.0
         print('Could not compute actual accuracy of worker because of 0 annotations.')
-    return precision, recall
+    return precision, recall, total_matches_so_far, total_annotated_so_far, total_size_tuples
 
 
 def create_fernet_for_amt_credentials(obj_run: run_components.Run):
@@ -1151,17 +1171,18 @@ def send_completion_notification(obj_run: run_components.Run):
 
     # 1. Construct the payload
     # Iterate on dir files
-    list_file_names = []
-    run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
-    if run_dir_path.is_dir():
-        for file_path in run_dir_path.iterdir():
-            if file_path.is_file():
-                # add this file name and its path (with download link)
-                list_file_names.append(file_path.name)
+    # list_file_names = []
+    # run_dir_path: Path = get_run_dir_path(obj_run=obj_run)
+    # if run_dir_path.is_dir():
+    #     for file_path in run_dir_path.iterdir():
+    #         if file_path.is_file():
+    #             # add this file name and its path (with download link)
+    #             list_file_names.append(file_path.name)
+    composite_run_id = f"{obj_run.user_id}.{obj_run.project_id}.{obj_run.workflow_id}.{obj_run.id}"
     payload = {
-        'run_id': obj_run.id,
+        'run_id': composite_run_id,
         'status': obj_run.status,
-        'list_file_names': list_file_names,
+        # 'list_file_names': list_file_names,
         'completed_at': timezone.now().isoformat()
     }
     # Convert the payload to JSON
@@ -1180,13 +1201,13 @@ def send_completion_notification(obj_run: run_components.Run):
         response = requests.post(webhook_url, headers=headers, data=json_payload, timeout=30)
         # check for successful status codes 
         response.raise_for_status()
-        print(f"Successfully sent notification for run {obj_run.id} to {webhook_url}. Status: {response.status_code}")
+        print(f"Successfully sent notification for run {composite_run_id} to {webhook_url}. Status: {response.status_code}")
         return True
     except requests.exceptions.RequestException as e:
         # This is where an asynchronous retry mechanism should be triggered.
-        print(f"Failed to send notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        print(f"Failed to send notification for run {composite_run_id} to {webhook_url}. Error: {e}")
         return False
     except Exception as e:
-        print(f"Error sending completion notification for run {obj_run.id} to {webhook_url}. Error: {e}")
+        print(f"Error sending completion notification for run {composite_run_id} to {webhook_url}. Error: {e}")
         return False
 

@@ -11,6 +11,7 @@ cymphony/
 
 # Ignore user experiment folders
 experiments/
+fake-smartcat-exps/
 
 # General ignores below
 
