@@ -293,8 +293,10 @@ def drive_by_curate(request: HttpRequest):
     # Aggregate these ad-hoc curations
     job_dao.aggregate_while_drive_by_curating(obj_job=obj_job, curations=annotations)
     print(f"Aggregated the drive-by votes to the aggregations table")
+    
     # Destroy the temp table
-    # job_dao.destroy_temp_table(obj_job=obj_job)
+    job_dao.destroy_temp_table(obj_job=obj_job)
+    print(f"Destroyed the temp table")
 
     return JsonResponse({'status': 'success', 'message': 'Drive by curations received and processed'}, status=200)
     # except Exception as e:

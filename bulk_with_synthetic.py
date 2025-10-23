@@ -184,43 +184,43 @@ def get_statistics(project_id, workflow_id, run_id):
 
 
 if __name__ == "__main__":
-    user_id, project_id, workflow_id, run_id, job_info = prepare_run(type='knlm')
+    # user_id, project_id, workflow_id, run_id, job_info = prepare_run(type='knlm')
 
-    print(f"Run: {run_id}")
-    print(f"Job info: {job_info}")
-    job_ids = job_info.keys()
-    print(f"Job IDs: {job_ids}")
-    job_id = str(list(job_ids)[0])
-    print(f"Job ID: {job_id}")
+    # print(f"Run: {run_id}")
+    # print(f"Job info: {job_info}")
+    # job_ids = job_info.keys()
+    # print(f"Job IDs: {job_ids}")
+    # job_id = str(list(job_ids)[0])
+    # print(f"Job ID: {job_id}")
     
-    job_parameters = {
-        'min_loop_times_job_' + job_id: '100', 'max_loop_times_job_' + job_id: '100',
-        'min_workers_per_burst_job_' + job_id: '1', 'max_workers_per_burst_job_' + job_id: '1',
-        'min_time_gap_in_loop_points_job_' + job_id: '120', 'max_time_gap_in_loop_points_job_' + job_id: '120',
-        'min_worker_annotation_time_job_' + job_id: '10', 'max_worker_annotation_time_job_' + job_id: '10',
-        'min_worker_accuracy_job_' + job_id: '0.8', 'max_worker_accuracy_job_' + job_id: '0.85'
-    }
-    print(f"Job parameters: {job_parameters}")
+    # job_parameters = {
+    #     'min_loop_times_job_' + job_id: '100', 'max_loop_times_job_' + job_id: '100',
+    #     'min_workers_per_burst_job_' + job_id: '1', 'max_workers_per_burst_job_' + job_id: '1',
+    #     'min_time_gap_in_loop_points_job_' + job_id: '120', 'max_time_gap_in_loop_points_job_' + job_id: '120',
+    #     'min_worker_annotation_time_job_' + job_id: '10', 'max_worker_annotation_time_job_' + job_id: '10',
+    #     'min_worker_accuracy_job_' + job_id: '0.8', 'max_worker_accuracy_job_' + job_id: '0.85'
+    # }
+    # print(f"Job parameters: {job_parameters}")
 
-    time.sleep(30)
+    # time.sleep(30)
 
-    response = simulate_run(project_id, workflow_id, run_id, job_parameters)
-    print(f"Response: {response}")
+    # response = simulate_run(project_id, workflow_id, run_id, job_parameters)
+    # print(f"Response: {response}")
 
-    # Simulate stewards via simulate_stewards.py
-    workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
-    data_file_path = workflow_dir / "edi_preprocessed_data.csv"
-    size_data_job = len(pd.read_csv(data_file_path))
-    print('Size of data pushed in job: ', size_data_job)
-    print('Requester ID: ', user_id)
+    # # Simulate stewards via simulate_stewards.py
+    # workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
+    # data_file_path = workflow_dir / "edi_preprocessed_data.csv"
+    # size_data_job = len(pd.read_csv(data_file_path))
+    # print('Size of data pushed in job: ', size_data_job)
+    # print('Requester ID: ', user_id)
 
     # statistics = get_statistics(project_id, workflow_id, run_id)  # TODO: Cymphony side needs to be changed to respond with json response in case of api requests
     # print(f"Statistics: {statistics.get('statistics')}")
 
-    # project_id, workflow_id, run_id = 65, 64, 76
-    # exp_dir = Path(f"fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow/exp_12_{project_id}_{workflow_id}_{run_id}")
-    # exp_dir.mkdir(parents=True, exist_ok=True)
+    project_id, workflow_id, run_id = 66, 65, 77
+    exp_dir = Path(f"fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow/exp_12_{project_id}_{workflow_id}_{run_id}")
+    exp_dir.mkdir(parents=True, exist_ok=True)
 
-    # download_results(project_id, workflow_id, run_id, exp_dir)
+    download_results(project_id, workflow_id, run_id, exp_dir)
 
-    # inspect_results(project_id, workflow_id, run_id, exp_dir)
+    inspect_results(project_id, workflow_id, run_id, exp_dir)

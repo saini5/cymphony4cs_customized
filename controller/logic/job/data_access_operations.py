@@ -481,12 +481,12 @@ def insert_drive_by_curation_votes(obj_job: job_components.Job, curations: list,
     finally:
         cursor.close()
 
-def create_temp_table(obj_job: job_components.Job, id_field_name: str):
+def create_temp_table(obj_job: job_components.Job, id_field_name: str = "id", table_name: str = "temp_annotations"):
     """Create a temp table to store the current annotations"""
     cursor = connection.cursor()
     try:
         job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
-        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        table_temp_annotations = job_prefix_table_name + table_name
         cursor.execute(
             "CREATE TABLE " + table_temp_annotations + " (" + id_field_name + " TEXT, worker_id integer, annotation text)",
             []
@@ -498,12 +498,26 @@ def create_temp_table(obj_job: job_components.Job, id_field_name: str):
     finally:
         cursor.close()
 
-def insert_temp_curations(obj_job: job_components.Job, curations: list, id_field_name: str):
+def destroy_temp_table(obj_job: job_components.Job, table_name: str = "temp_annotations"):
+    """Destroy the temp table"""
+    cursor = connection.cursor()
+    try:
+        job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
+        table_temp_annotations = job_prefix_table_name + table_name
+        cursor.execute("DROP TABLE IF EXISTS " + table_temp_annotations, [])
+        return
+    except ValueError as err:
+        print('Data access exception in destroy temp table')
+        print(err.args)
+    finally:
+        cursor.close()
+
+def insert_temp_curations(obj_job: job_components.Job, curations: list, id_field_name: str, table_name: str = "temp_annotations"):
     """Insert temp annotations into the temp table"""
     cursor = connection.cursor()
     try:
         job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
-        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        table_temp_annotations = job_prefix_table_name + table_name
         for curation in curations:
             external_tuple_id = curation[0]
             worker_id = curation[1]
@@ -520,12 +534,12 @@ def insert_temp_curations(obj_job: job_components.Job, curations: list, id_field
         cursor.close()
 
 
-def join_temp_table_with_tuples(obj_job: job_components.Job, id_field_name: str):
+def join_temp_table_with_tuples(obj_job: job_components.Job, id_field_name: str, temp_table_name: str = "temp_annotations"):
     """Join the temp table with the tuples table to get the task_id vs worker_id vs annotation"""
     cursor = connection.cursor()
     try:
         job_prefix_table_name = get_job_prefix_table_name(obj_job=obj_job)
-        table_temp_annotations = job_prefix_table_name + "temp_annotations"
+        table_temp_annotations = job_prefix_table_name + temp_table_name
         table_tuples = job_prefix_table_name + "tuples"
         cursor.execute(
             "SELECT tup._id, t.worker_id, t.annotation FROM " + table_temp_annotations + " t INNER JOIN " + table_tuples + " tup USING(" + id_field_name + ")",
