@@ -777,10 +777,10 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
     call_job_index(s, job_index_url)
 
     # basic computation for determining number of labels to match in simulation
-    target_p = worker_accuracy
+    # target_p = worker_accuracy
     total_size_tuples = size_data_job
-    target_total_matches = int(target_p * float(total_size_tuples))
-    target_total_non_matches = int(total_size_tuples) - target_total_matches
+    # target_total_matches = int(target_p * float(total_size_tuples))
+    # target_total_non_matches = int(total_size_tuples) - target_total_matches
     total_matches_so_far = 0
     total_annotated_so_far = 0
     total_time_elapsed_all_submits = 0
@@ -815,7 +815,6 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 time_elapsed_first_assignment=time_elapsed_first_assignment,
                 total_submits_made=total_submits_made,
                 total_time_elapsed_all_submits=total_time_elapsed_all_submits,
-                target_total_matches=target_total_matches,
                 total_matches_so_far=total_matches_so_far,
                 total_size_tuples=total_size_tuples,
                 total_annotated_so_far=total_annotated_so_far,
@@ -856,38 +855,52 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                 #   but all no got eliminated because worker never got to annotate later tuples.
                 # So, probability based matching is the best possible case already in that scenario,
                 #   and will ensure worker accuracy to be closest to intended accuracy of worker.
-                total_non_matches_so_far = total_annotated_so_far - total_matches_so_far
-                if total_non_matches_so_far >= target_total_non_matches:
-                    # print("Non matches had exhausted.")
-                    # all intended non-matches exhausted, choose to match
+
+                # total_non_matches_so_far = total_annotated_so_far - total_matches_so_far
+                # if total_non_matches_so_far >= target_total_non_matches:
+                #     # print("Non matches had exhausted.")
+                #     # all intended non-matches exhausted, choose to match
+                #     label_to_annotate_with = gold_label
+                #     total_matches_so_far = total_matches_so_far + 1
+                # elif total_matches_so_far >= target_total_matches:
+                #     # print("Matches had exhausted.")
+                #     # all intended matches exhausted, choose to not match
+                #     # any label (out of the available options) but the gold label
+                #     if task_option_list is None:    # free text answer
+                #         label_to_annotate_with = gold_label + str(random.randint(1,10))
+                #     else:   # answer has to be from a set of choices
+                #         choices: list = task_option_list.copy()
+                #         choices.remove(gold_label)
+                #         label_list: list = random.choices(choices, k=1)
+                #         label_to_annotate_with = label_list[0]
+                # else:  # edge cases did not get hit, so go with normal case of picking based on probability.
+                #     # print("Probability based choice selection")
+                #     match = random.choices([0, 1], weights=(target_total_non_matches, target_total_matches), k=1)
+                #     if match[0] == 1:
+                #         label_to_annotate_with = gold_label
+                #         total_matches_so_far = total_matches_so_far + 1
+                #     else:
+                #         # any label (out of the available options) but the gold label
+                #         if task_option_list is None:  # free text answer
+                #             label_to_annotate_with = gold_label + str(random.randint(1, 10))
+                #         else:  # answer has to be from a set of choices
+                #             choices = task_option_list.copy()
+                #             choices.remove(gold_label)
+                #             label_list: list = random.choices(choices, k=1)
+                #             label_to_annotate_with = label_list[0]
+                # Replacing the above with simpler logic
+                if random.random() < worker_accuracy:   # Tosses a coin with say 83% probability of being correct, where accuracy is the probability of being correct.
                     label_to_annotate_with = gold_label
                     total_matches_so_far = total_matches_so_far + 1
-                elif total_matches_so_far >= target_total_matches:
-                    # print("Matches had exhausted.")
-                    # all intended matches exhausted, choose to not match
-                    # any label (out of the available options) but the gold label
-                    if task_option_list is None:    # free text answer
-                        label_to_annotate_with = gold_label + str(random.randint(1,10))
-                    else:   # answer has to be from a set of choices
-                        choices: list = task_option_list.copy()
+                else:
+                    if task_option_list is None:  # free text answer
+                        label_to_annotate_with = gold_label + str(random.randint(1, 10))
+                    else:  # answer has to be from a set of choices
+                        choices = task_option_list.copy()
                         choices.remove(gold_label)
                         label_list: list = random.choices(choices, k=1)
                         label_to_annotate_with = label_list[0]
-                else:  # edge cases did not get hit, so go with normal case of picking based on probability.
-                    # print("Probability based choice selection")
-                    match = random.choices([0, 1], weights=(target_total_non_matches, target_total_matches), k=1)
-                    if match[0] == 1:
-                        label_to_annotate_with = gold_label
-                        total_matches_so_far = total_matches_so_far + 1
-                    else:
-                        # any label (out of the available options) but the gold label
-                        if task_option_list is None:  # free text answer
-                            label_to_annotate_with = gold_label + str(random.randint(1, 10))
-                        else:  # answer has to be from a set of choices
-                            choices = task_option_list.copy()
-                            choices.remove(gold_label)
-                            label_list: list = random.choices(choices, k=1)
-                            label_to_annotate_with = label_list[0]
+
                 # print('Total annotated so far: ', total_annotated_so_far)
                 total_annotated_so_far = total_annotated_so_far + 1
                 # send the label to annotate with as well
@@ -919,7 +932,6 @@ def run_worker_pipeline(simulation_parameters_dict: dict, obj_job: job_component
                         time_elapsed_first_assignment=time_elapsed_first_assignment,
                         total_submits_made=total_submits_made,
                         total_time_elapsed_all_submits=total_time_elapsed_all_submits,
-                        target_total_matches=target_total_matches,
                         total_matches_so_far=total_matches_so_far,
                         total_size_tuples=total_size_tuples,
                         total_annotated_so_far=total_annotated_so_far,
@@ -1010,7 +1022,7 @@ def call_submit_annotation(s, url, label_to_annotate_with):
 def compute_worker_statistics(
         time_elapsed_first_assignment,
         total_submits_made, total_time_elapsed_all_submits,
-        target_total_matches, total_matches_so_far,
+        total_matches_so_far,
         total_size_tuples, total_annotated_so_far,
         accuracy
 ):
@@ -1021,10 +1033,8 @@ def compute_worker_statistics(
         print('Average Submit-Assign cycle time (in ns): ', float(total_time_elapsed_all_submits) / total_submits_made)
     else:
         print('Could not compute average submit-assign cycle time because of 0 submissions (annotations).')
-    # exact intention implementation
-    # to experimentally verify the edge case matching + probability based matching accuracy
-    print('Total intended matches decided from worker accuracy parameter: ', target_total_matches)
-    print('Total matches actually made by worker: ', total_matches_so_far)
+    
+    print('Total matches made by worker: ', total_matches_so_far)
     # recall
     print('Total annotated by worker: ', total_annotated_so_far)
     print('Total size(tuples) of data belonging to the job: ', total_size_tuples)

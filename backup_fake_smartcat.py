@@ -143,11 +143,12 @@ class CymphonyClient:
         response = self._post(endpoint, data=data_for_cymphony, is_json=False)
         return response['run_id']
     
-    def create_simulated_run(self, project_id, workflow_id, run_name, run_description):
+    def create_simulated_run(self, project_id, workflow_id, run_name, run_description, notification_url=None):
         endpoint = f'/controller/?category=simulated_run&action=create&pid={project_id}&wid={workflow_id}'
         data = {
             's_r_name': run_name,
-            's_r_desc': run_description
+            's_r_desc': run_description,
+            'notification_url': notification_url
         }
         response = self._post(endpoint, data=data, is_json=False)
         return response['simulated_run_id'], response['job_info']
