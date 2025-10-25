@@ -206,10 +206,10 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
     call_job_index(s, job_index_url)
 
     # basic computation for determining number of labels to match in simulation
-    target_p = worker_accuracy
+    # target_p = worker_accuracy
     total_size_tuples = int(job_info['size_data_job'])
-    target_total_matches = int(target_p * float(total_size_tuples))
-    target_total_non_matches = int(total_size_tuples) - target_total_matches
+    # target_total_matches = int(target_p * float(total_size_tuples))
+    # target_total_non_matches = int(total_size_tuples) - target_total_matches
     total_matches_so_far = 0
     total_annotated_so_far = 0
     
@@ -246,7 +246,6 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
             )
             # compute statistics of worker, pertaining to worker's interaction with cymphony
             (precision, recall) = compute_worker_statistics(
-                target_total_matches=target_total_matches,
                 total_matches_so_far=total_matches_so_far,
                 total_size_tuples=total_size_tuples,
                 total_annotated_so_far=total_annotated_so_far,
@@ -258,6 +257,9 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                 worker_username=user_name, 
                 worker_precision=precision,
                 worker_recall=recall,
+                total_matches_so_far=total_matches_so_far,
+                total_annotated_so_far=total_annotated_so_far,
+                total_size_tuples=total_size_tuples,
                 user_name=user_name,
                 log_file=log_file
             )
@@ -286,38 +288,51 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                 #   but all no got eliminated because worker never got to annotate later tuples.
                 # So, probability based matching is the best possible case already in that scenario,
                 #   and will ensure worker accuracy to be closest to intended accuracy of worker.
-                total_non_matches_so_far = total_annotated_so_far - total_matches_so_far
-                if total_non_matches_so_far >= target_total_non_matches:
-                    # print("Non matches had exhausted.")
-                    # all intended non-matches exhausted, choose to match
+                
+                # total_non_matches_so_far = total_annotated_so_far - total_matches_so_far
+                # if total_non_matches_so_far >= target_total_non_matches:
+                #     # print("Non matches had exhausted.")
+                #     # all intended non-matches exhausted, choose to match
+                #     label_to_annotate_with = gold_label
+                #     total_matches_so_far = total_matches_so_far + 1
+                # elif total_matches_so_far >= target_total_matches:
+                #     # print("Matches had exhausted.")
+                #     # all intended matches exhausted, choose to not match
+                #     # any label (out of the available options) but the gold label
+                #     if task_option_list is None:    # free text answer
+                #         label_to_annotate_with = gold_label + str(random.randint(1,10))
+                #     else:   # answer has to be from a set of choices
+                #         choices: list = task_option_list.copy()
+                #         choices.remove(gold_label)
+                #         label_list: list = random.choices(choices, k=1)
+                #         label_to_annotate_with = label_list[0]
+                # else:  # edge cases did not get hit, so go with normal case of picking based on probability.
+                #     # print("Probability based choice selection")
+                #     match = random.choices([0, 1], weights=(target_total_non_matches, target_total_matches), k=1)
+                #     if match[0] == 1:
+                #         label_to_annotate_with = gold_label
+                #         total_matches_so_far = total_matches_so_far + 1
+                #     else:
+                #         # any label (out of the available options) but the gold label
+                #         if task_option_list is None:  # free text answer
+                #             label_to_annotate_with = gold_label + str(random.randint(1, 10))
+                #         else:  # answer has to be from a set of choices
+                #             choices = task_option_list.copy()
+                #             choices.remove(gold_label)
+                #             label_list: list = random.choices(choices, k=1)
+                #             label_to_annotate_with = label_list[0]
+                if random.random() < worker_accuracy:   # Tosses a coin with say 83% probability of being correct, where accuracy is the probability of being correct.
                     label_to_annotate_with = gold_label
                     total_matches_so_far = total_matches_so_far + 1
-                elif total_matches_so_far >= target_total_matches:
-                    # print("Matches had exhausted.")
-                    # all intended matches exhausted, choose to not match
-                    # any label (out of the available options) but the gold label
-                    if task_option_list is None:    # free text answer
-                        label_to_annotate_with = gold_label + str(random.randint(1,10))
-                    else:   # answer has to be from a set of choices
-                        choices: list = task_option_list.copy()
+                else:
+                    if task_option_list is None:  # free text answer
+                        label_to_annotate_with = gold_label + str(random.randint(1, 10))
+                    else:  # answer has to be from a set of choices
+                        choices = task_option_list.copy()
                         choices.remove(gold_label)
                         label_list: list = random.choices(choices, k=1)
                         label_to_annotate_with = label_list[0]
-                else:  # edge cases did not get hit, so go with normal case of picking based on probability.
-                    # print("Probability based choice selection")
-                    match = random.choices([0, 1], weights=(target_total_non_matches, target_total_matches), k=1)
-                    if match[0] == 1:
-                        label_to_annotate_with = gold_label
-                        total_matches_so_far = total_matches_so_far + 1
-                    else:
-                        # any label (out of the available options) but the gold label
-                        if task_option_list is None:  # free text answer
-                            label_to_annotate_with = gold_label + str(random.randint(1, 10))
-                        else:  # answer has to be from a set of choices
-                            choices = task_option_list.copy()
-                            choices.remove(gold_label)
-                            label_list: list = random.choices(choices, k=1)
-                            label_to_annotate_with = label_list[0]
+
                 print('Total annotated so far: ', total_annotated_so_far)
                 total_annotated_so_far = total_annotated_so_far + 1
                 # send the label to annotate with as well
@@ -346,7 +361,6 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                     )
                     # compute statistics of worker, pertaining to worker's interaction with cymphony
                     (precision, recall) = compute_worker_statistics(
-                        target_total_matches=target_total_matches,
                         total_matches_so_far=total_matches_so_far,
                         total_size_tuples=total_size_tuples,
                         total_annotated_so_far=total_annotated_so_far,
@@ -358,6 +372,9 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                         worker_username=user_name, 
                         worker_precision=precision,
                         worker_recall=recall,
+                        total_matches_so_far=total_matches_so_far,
+                        total_annotated_so_far=total_annotated_so_far,
+                        total_size_tuples=total_size_tuples,
                         user_name=user_name,
                         log_file=log_file
                     )
@@ -410,7 +427,6 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
         )
         # compute statistics of worker, pertaining to worker's interaction with cymphony
         (precision, recall) = compute_worker_statistics(
-            target_total_matches=target_total_matches,
             total_matches_so_far=total_matches_so_far,
             total_size_tuples=total_size_tuples,
             total_annotated_so_far=total_annotated_so_far,
@@ -422,6 +438,9 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
             worker_username=user_name, 
             worker_precision=precision,
             worker_recall=recall,
+            total_matches_so_far=total_matches_so_far,
+            total_annotated_so_far=total_annotated_so_far,
+            total_size_tuples=total_size_tuples,
             user_name=user_name,
             log_file=log_file
         )
@@ -437,11 +456,11 @@ def store_actual_simulation_parameters_per_worker(worker_username: str, worker_r
     log_file.write(f'Actual simulation parameters for worker {worker_username}: worker_reliability={worker_reliability}, worker_annotation_time={worker_annotation_time}, user_name={user_name}\n')
     return
 
-def store_actual_simulation_statistics_per_worker(worker_username: str, worker_precision: float, worker_recall: float, user_name: str, log_file=None):
+def store_actual_simulation_statistics_per_worker(worker_username: str, worker_precision: float, worker_recall: float, total_matches_so_far: int, total_annotated_so_far: int, total_size_tuples: int, user_name: str, log_file=None):
     """Store the actual simulation statistics for a worker in the log file"""
     if log_file is None:
         log_file = create_log()
-    log_file.write(f'Actual simulation statistics for worker {worker_username}: worker_precision={worker_precision}, worker_recall={worker_recall}, user_name={user_name}\n')
+    log_file.write(f'Actual simulation statistics for worker {worker_username}: worker_precision={worker_precision}, worker_recall={worker_recall}, total_matches_so_far={total_matches_so_far}, total_annotated_so_far={total_annotated_so_far}, total_size_tuples={total_size_tuples}, user_name={user_name}\n')
     return
 
 
@@ -528,15 +547,13 @@ def call_submit_annotation(s, url, label_to_annotate_with):
 
 
 def compute_worker_statistics(
-        target_total_matches, total_matches_so_far,
-        total_size_tuples, total_annotated_so_far,
+        total_matches_so_far,
+        total_size_tuples, 
+        total_annotated_so_far,
         accuracy,
         user_name
 ):
-    # exact intention implementation
-    # to experimentally verify the edge case matching + probability based matching accuracy
-    print(f'Total intended matches decided from worker {user_name} accuracy parameter: {target_total_matches}')
-    print(f'Total matches actually made by worker {user_name}: {total_matches_so_far}')
+    print(f'Total matches made by worker {user_name}: {total_matches_so_far}')
     # recall
     print(f'Total annotated by worker {user_name}: {total_annotated_so_far}')
     print(f'Total size(tuples) of data belonging to the job: {total_size_tuples}')
