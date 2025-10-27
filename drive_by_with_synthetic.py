@@ -154,6 +154,14 @@ class CymphonyClient:
 
 def simulate_worker(worker_id: int, data_csv_path: Path, id_field_name: str, annotation_time: int, accuracy: float, num_annotations: int, gold_label_column_name: str, domain_answer_options: list):
     """Simulates a worker's annotation of a given number of tuples from the data file."""
+    logger.info(f"Simulating worker {worker_id}...")
+    logger.info(f"Worker {worker_id} data CSV path: {data_csv_path}")
+    logger.info(f"Worker {worker_id} ID field name: {id_field_name}")
+    logger.info(f"Worker {worker_id} Annotation time: {annotation_time}")
+    logger.info(f"Worker {worker_id} Accuracy: {accuracy}")
+    logger.info(f"Worker {worker_id} Number of annotations: {num_annotations}")
+    logger.info(f"Worker {worker_id} Gold label column name: {gold_label_column_name}")
+    logger.info(f"Worker {worker_id} Domain answer options: {domain_answer_options}")
     if not data_csv_path.exists():
         raise FileNotFoundError(f"Data CSV file not found at {data_csv_path}")
     
@@ -166,16 +174,10 @@ def simulate_worker(worker_id: int, data_csv_path: Path, id_field_name: str, ann
             # Select num_annotations unique rows to be annotated
             selected_rows = random.sample(all_rows, num_annotations)
 
-            # Determine correctness for each annotation
-            num_correct_annotations = int(num_annotations * accuracy)
-            num_incorrect_annotations = num_annotations - num_correct_annotations
-            is_correct_list = [True] * num_correct_annotations + [False] * num_incorrect_annotations
-            random.shuffle(is_correct_list)
-
             for i, row_to_annotate in enumerate(selected_rows):
                 id = row_to_annotate[id_field_name]
-                is_correct = is_correct_list[i]
-
+                time.sleep(annotation_time) # Simulate the time taken by the worker to annotate the tuple
+                is_correct = random.random() < accuracy # Tosses a coin with say 83% probability of being correct, where accuracy is the probability of being correct.
                 if is_correct:
                     annotation = row_to_annotate[gold_label_column_name]
                 else:
@@ -190,11 +192,44 @@ def simulate_worker(worker_id: int, data_csv_path: Path, id_field_name: str, ann
             raise ValueError(f"Not enough rows found in the data CSV file at {data_csv_path} for {num_annotations} annotations.")
     return curations
 
+def simulate_worker_and_send_to_cymphony(
+    worker_id, 
+    data_csv_path, 
+    id_field_name, 
+    annotation_time, 
+    accuracy, 
+    num_annotations, 
+    gold_label_column_name, 
+    domain_answer_options,
+    run_id,
+    client
+    ):
+    curations_data = simulate_worker(
+        worker_id=worker_id,
+        data_csv_path=data_csv_path, 
+        id_field_name=id_field_name, 
+        annotation_time=annotation_time,
+        accuracy=accuracy, 
+        num_annotations=num_annotations,
+        gold_label_column_name=gold_label_column_name, 
+        domain_answer_options=domain_answer_options 
+    )
+    logger.info(f"Curations generated for worker {worker_id}: {curations_data}")
+    
+    logger.info(f"Sending ad-hoc curations for worker {worker_id} to Cymphony...")
+    drive_by_response = client.send_ad_hoc_curations(run_id, curations_data)
+    if drive_by_response['status'] == 'success':
+        logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
+    else:
+        logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
+
+
 # --- Main Simulation Logic ---
 def simulate_drive_by_curation():
     client = CymphonyClient(CYMPHONY_URL)
     run_id = None
     try:
+        start_time = time.time()
         logger.info("--- Starting Fake Smartcat Drive-by Curation Simulation ---")
 
         # 1. SC logs in to CN
@@ -216,43 +251,55 @@ def simulate_drive_by_curation():
         run_id = client.create_curation_run(dict_file_paths, data_file_id_field_name, notification_url)
         logger.info(f"Curation run created with ID: {run_id}")
 
-        time.sleep(30)
+        time.sleep(2)
 
         # 3. SC sends ad-hoc curations
 
         # Setting up the curations
         num_workers = 50
         time_gap_between_workers = 120 # 2 minutes
+        threads = []
         for worker_id in range(num_workers):
+            worker_id=worker_id
+            data_csv_path=dict_file_paths['data_file']
+            id_field_name=data_file_id_field_name
+            annotation_time=10
+            accuracy=random.uniform(0.8, 0.85)
+            num_annotations=10
+            gold_label_column_name="gold_label"
+            domain_answer_options=['0.0', '1.0'] 
+            
             logger.info(f"Starting drive-by curation for worker {worker_id}...")
-            curations_data = simulate_worker(
-                worker_id=worker_id,
-                data_csv_path=dict_file_paths['data_file'], 
-                id_field_name=data_file_id_field_name, 
-                annotation_time=10,
-                accuracy=random.uniform(0.8, 0.85), 
-                num_annotations=10,
-                gold_label_column_name="gold_label", 
-                domain_answer_options=['0.0', '1.0'] 
+            thread = threading.Thread(
+                target=simulate_worker_and_send_to_cymphony,
+                args=(
+                    worker_id,
+                    data_csv_path,  
+                    id_field_name,
+                    annotation_time,
+                    accuracy,
+                    num_annotations,
+                    gold_label_column_name,
+                    domain_answer_options,
+                    run_id,
+                    client
+                )
             )
-            logger.info(f"Curations generated for worker {worker_id}: {curations_data}")
-            
-            logger.info(f"Sending ad-hoc curations for worker {worker_id} to Cymphony...")
-            drive_by_response = client.send_ad_hoc_curations(run_id, curations_data)
-            if drive_by_response['status'] == 'success':
-                logger.info(f"Ad-hoc curations sent to Cymphony for run {run_id}")
-            else:
-                logger.error(f"Failed to send ad-hoc curations to Cymphony for run {run_id}")
-            
+            thread.start()
+            threads.append(thread)
             time.sleep(time_gap_between_workers)
         
-        time.sleep(30)
+        # Wait for all workers to finish
+        for thread in threads:
+            thread.join()
+        
+        time.sleep(2)
 
         # 4. SC gets the status of the run
         status_response = client.get_run_status(run_id)
         logger.info(f"Run {run_id} status: {status_response}")
 
-        time.sleep(30)
+        time.sleep(2)
 
         # 5. SC downloads the tables
         table_names = ['Assignments', 'Annotations', 'Aggregations']
@@ -264,6 +311,9 @@ def simulate_drive_by_curation():
         with open(zip_file_path, 'wb') as f:
             f.write(download_tables_contents)
         logger.info(f"Tables downloaded from Cymphony for run {run_id} and placed in {zip_file_path}")
+
+        end_time = time.time()
+        logger.info(f"Total time taken: {int(end_time - start_time)} seconds")
         
 
     except requests.exceptions.HTTPError as e:

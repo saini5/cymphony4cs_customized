@@ -261,12 +261,12 @@ if __name__ == "__main__":
 
     time.sleep(2)
 
-    # # Simulate stewards via simulate_stewards.py
-    # workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
-    # data_file_path = workflow_dir / "edi_preprocessed_data.csv"
-    # size_data_job = len(pd.read_csv(data_file_path))
-    # print('Size of data pushed in job: ', size_data_job)
-    # print('Requester ID: ', user_id)
+    # Simulate stewards via simulate_stewards.py
+    workflow_dir = Path("fake-smartcat-exps/bulk-curation/synthetic-workers/test-workflow")
+    data_file_path = workflow_dir / "edi_preprocessed_data.csv"
+    size_data_job = len(pd.read_csv(data_file_path))
+    print('Size of data pushed in job: ', size_data_job)
+    print('Requester ID: ', user_id)
 
     # statistics = get_statistics(project_id, workflow_id, run_id)  # TODO: Cymphony side needs to be changed to respond with json response in case of api requests
     # print(f"Statistics: {statistics.get('statistics')}")
