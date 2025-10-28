@@ -48,6 +48,26 @@ def index_3a_knlm(request: HttpRequest):
         'section': 'worker',
         'list_3a_knlm_jobs': list_3a_knlm_jobs
     }
+    # for api requests such as by simulated workers
+    if 'python' in request.headers.get('User-Agent'):
+        # modify context's list_3a_knlm_jobs to be a list of dictionaries with the keys: user_id, project_id, workflow_id, run_id, job_id
+        listing = []
+        for job in list_3a_knlm_jobs:
+            listing.append({
+                'user_id': job.user_id,
+                'project_id': job.project_id,
+                'workflow_id': job.workflow_id,
+                'run_id': job.run_id,
+                'job_id': job.id,
+                'job_name': job.name,
+                'job_type': job.type,
+                'job_status': job.status,
+                'date_creation': job.date_creation
+            })
+        context['list_3a_knlm_jobs'] = listing
+        # return the context as a json response
+        return JsonResponse(context)
+    # usual case: for requests via GUI
     template = loader.get_template('controller/job/job_management_index_3a_knlm.html')
     response = HttpResponse(template.render(context, request))
     return response
