@@ -11,6 +11,19 @@ C. Run the simulation.
     b. For each loop point, run the stewards simulation loop. From a pool of stewards in stewards.csv, pick the number of stewards to be used in this loop point.
     c. When each steward is finished, store the work statistics in the log file.
 
+Notes:
+You could make some changes to make it more identical to simulate_workers.py like:
+1. In real scenario, job id is not known in advance, so we need to get it from job index call.
+2. Remove recall calculation and hence remove size_data_job parameter.
+3. Remove prints.
+4. Add csv file to store per steward statistics.
+
+We don't need all of these changes since
+1. For the goal of simulating, it is okay to put in the job id there manually.
+2. No harm in extra recall statistic.
+3. No harm in prints since there are only 2 stewards.
+4. No harm in not having a csv file to store per steward statistics since there are only 2 stewards.
+
 """
 import random
 import time
@@ -24,7 +37,12 @@ from pathlib import Path
 
 
 # --- Logging ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='steward_sim.logg',
+    filemode='a'
+)
 logger = logging.getLogger(__name__)
 
 def create_log():

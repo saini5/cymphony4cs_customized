@@ -27,7 +27,12 @@ from pathlib import Path
 
 
 # --- Logging ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='simulate_workers.logg',
+    filemode='a'
+)
 logger = logging.getLogger(__name__)
 
 file_lock = threading.Lock()
@@ -177,7 +182,7 @@ def run_worker_pipeline(accuracy: float, annotation_time: int, time_duration: in
     # initializations
     s = Session()
     submit_retries = Retry(
-        total=5,
+        total=1,
         backoff_factor=1,
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"]

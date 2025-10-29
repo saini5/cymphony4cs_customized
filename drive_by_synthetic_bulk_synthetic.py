@@ -25,7 +25,12 @@ SMARTCAT_PASSWORD = 'smartcat_password' # Password for Smartcat user
 # WEBHOOK_SECRET = 'mys_webhook_secret' # Shared secret for webhook signature verification
 
 # --- Logging ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='script.logg',
+    filemode='a'
+)
 logger = logging.getLogger(__name__)
 
 # --- Cymphony API Client ---
@@ -35,7 +40,7 @@ class CymphonyClient:
         self.session = requests.Session()
         # Set up retry mechanism
         retry_strategy = Retry(
-            total=5,
+            total=1,
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -268,6 +273,7 @@ def simulate_driveby_with_sc_workers(dict_file_paths, data_file_id_field_name, r
     end_time_sc_operations = time.time()
     time_taken_sc_operations = end_time_sc_operations - start_time_sc_operations
     logger.info(f"Time taken for SC operations: {time_taken_sc_operations} seconds")
+    print(f"Time taken for SC operations: {time_taken_sc_operations} seconds")
     
 
 
@@ -277,6 +283,7 @@ def simulate():
     run_id = None
     try:
         logger.info("--- Starting Fake Smartcat Drive-by Curation Simulation ---")
+        print("--- SStarting Fake Smartcat Drive-by Curation Simulation ---")
         e2e_start_time = time.time()
         start_time_sc_operations = time.time()
 
@@ -358,6 +365,7 @@ def simulate():
 
         e2e_end_time = time.time()
         logger.info(f"Total time taken: {int(e2e_end_time - e2e_start_time)} seconds")
+        print(f"Total time taken: {int(e2e_end_time - e2e_start_time)} seconds")
 
         # 5. If run completed (either via poll or callback), SC downloads the tables
         table_names = ['Assignments', 'Annotations', 'Aggregations']
