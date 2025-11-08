@@ -261,8 +261,8 @@ AMT_PASSWORD_ENCODING = os.environ.get('AMT_PASSWORD_ENCODING')
 AMT_SALT_ENCODING = os.environ.get('AMT_SALT_ENCODING')
 
 # Key derivation function
-KDF_LENGTH = os.environ.get('KDF_LENGTH')
-KDF_ITERATIONS = os.environ.get('KDF_ITERATIONS')
+KDF_LENGTH = int(os.environ.get('KDF_LENGTH'))
+KDF_ITERATIONS = int(os.environ.get('KDF_ITERATIONS'))
 
 # Properties of AMT credentials supplied by requester
 AMT_CREDENTIALS_ENCODING = os.environ.get('AMT_CREDENTIALS_ENCODING')
