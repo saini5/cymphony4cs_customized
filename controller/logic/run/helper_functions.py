@@ -631,6 +631,7 @@ def complete_processing_job_and_progress_dag(
         print('RUN COMPLETED')
         end_ts = time.time()
         print('SIMULATED RUN COMPLETED at: ', end_ts)
+        print('Time of run completion: ', timezone.now())
         send_completion_notification(obj_run=obj_run)
         return
     # or human operator caused a break in exploration
