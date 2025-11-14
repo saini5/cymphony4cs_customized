@@ -74,8 +74,42 @@ def prepare_data(exp_dir: Path, num_records_to_sample: int = 0, pre_filter_perce
             # remove 10% of the yes tuples
             df_initial_yes = df_initial[df_initial['gold_label'] == YES].sample(frac=1-pre_filter_percentage, random_state=42)
             df_initial_no = df_initial[df_initial['gold_label'] == NO]
+            # load the df_initial_no_with_checks 
+            df_initial_no_with_checks = pd.read_csv(exp_dir / 'data' / 'edi250_maverick_preprocessed_data_no_EDITED.csv')
+            print('df_initial_no_with_checks: \n')
+            print(df_initial_no_with_checks.to_string(index=False))
+            print(df_initial_no_with_checks.shape)
+            print(df_initial_no_with_checks.dtypes)
+            # join the df_initial_no_with_checks with the df_initial_no using a merge so that we can get access to the checks column
+            df_initial_no = df_initial_no.merge(df_initial_no_with_checks[['id', 'check']], on='id', how='left')
+            print('df_initial_no: \n')
+            print(df_initial_no.head(10))
+            print(df_initial_no.shape)
+            print(df_initial_no.dtypes)
+            # remove the rows where the check column is 1
+            df_initial_no = df_initial_no[df_initial_no['check'] != 1]
+            print('df_initial_no after removing the rows where the check column is 1: \n')
+            print(df_initial_no.head(10))
+            print(df_initial_no.shape)
+            print(df_initial_no.dtypes)
+
+            # remove the check column
+            df_initial_no = df_initial_no.drop(columns=['check'])
+            print('df_initial_no after removing the check column: \n')
+            print(df_initial_no.head(10))
+            print(df_initial_no.shape)
+            print(df_initial_no.dtypes)
+
+            # number of unique table_names in the df_initial_no
+            unique_table_names = df_initial_no['table_name'].unique()
+            print('Unique table names in the df_initial_no: \n')
+            print(unique_table_names)
+            print(len(unique_table_names))
+
+            # join the df_initial_yes and the df_initial_no
             df_initial = pd.concat([df_initial_yes, df_initial_no])
             print(f"Removed {pre_filter_percentage*100}% of the yes tuples")
+            print(f"Removed {len(df_initial_no_with_checks) - len(df_initial_no)} out of the total {len(df_initial_no_with_checks)} no tuples")
         else:
             # remove 10% of the no tuples
             df_initial_no = df_initial[df_initial['gold_label'] == NO].sample(frac=1-pre_filter_percentage, random_state=42)
@@ -96,8 +130,21 @@ def prepare_data(exp_dir: Path, num_records_to_sample: int = 0, pre_filter_perce
             # sampled_per_table_df = df_initial.groupby('table_name').first().reset_index()
             # random_state = random.randint(1, 10000)
             # print(f"Random state: {random_state}")
-            sampled_per_table_df = df_initial.groupby('table_name').sample(n=1, random_state=42).reset_index(drop=True)
-            print(f"Sampled one tuple per unique table_name. Resulting in {len(sampled_per_table_df)} records.")
+            df_initial_yes = df_initial[df_initial['gold_label'] == YES]
+            sampled_per_table_df_yes = df_initial_yes.groupby('table_name').sample(n=1, random_state=42).reset_index(drop=True)
+            print('sampled_per_table_df_yes: \n')
+            print(sampled_per_table_df_yes.head(10))
+            print(sampled_per_table_df_yes.shape)
+            print(sampled_per_table_df_yes.dtypes)
+            sampled_per_table_df_no = df_initial_no.groupby('table_name').sample(n=1, random_state=42).reset_index(drop=True)
+            print('sampled_per_table_df_no: \n')
+            print(sampled_per_table_df_no.head(10))
+            print(sampled_per_table_df_no.shape)
+            print(sampled_per_table_df_no.dtypes)
+            sampled_per_table_df = pd.concat([sampled_per_table_df_yes, sampled_per_table_df_no])
+
+            # sampled_per_table_df = df_initial.groupby('table_name').sample(n=1, random_state=57).reset_index(drop=True)
+            print(f"\nSampled one tuple per unique table_name. Resulting in {len(sampled_per_table_df)} records.")
         else:
             print()
             print("Warning: 'table_name' column not found for step 2a. Skipping sampling per table. Using all valid rows for balanced sampling.")
