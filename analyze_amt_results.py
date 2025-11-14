@@ -7,7 +7,7 @@ import json
 def analyze_results(exp_dir):
     print("Analyzing results for experiment: ", exp_dir)
     print('AMT outputs: ')
-    amt_outputs_file_path = exp_dir / "results" / "B_1.csv"
+    amt_outputs_file_path = exp_dir / "results" / "B_1"
     amt_outputs_df = pd.read_csv(amt_outputs_file_path)
     print(amt_outputs_df.head())
     
@@ -37,11 +37,14 @@ def analyze_results(exp_dir):
     print('Total tuples with gold_label: ', total_gold_labels)
     # Number of tuples with gold_label as 'Yes' and 'No'
     print('Number of tuples with gold_label as \'Yes\':')
-    yes_tuples = id_vs_gold_label[id_vs_gold_label['gold_label'] == 1.0].shape[0]
-    print(yes_tuples)
+    yes_tuples = id_vs_gold_label[id_vs_gold_label['gold_label'] == 1.0]
+    print(yes_tuples.shape[0])
     print('Number of tuples with gold_label as \'No\':')
-    no_tuples = id_vs_gold_label[id_vs_gold_label['gold_label'] == 0.0].shape[0]
+    no_tuples = id_vs_gold_label[id_vs_gold_label['gold_label'] == 0.0]
     print(no_tuples)
+    # write to csv
+    no_tuples.to_csv(exp_dir / 'results' / 'no_tuples.csv', index=False)
+    print(no_tuples.shape[0])
 
     print('========= Statistics on Worker Votes ==================')
     # id vs annotation
@@ -87,6 +90,29 @@ def analyze_results(exp_dir):
     id_vs_annotation_vs_gold_label = id_vs_annotation.merge(edi_data_df, on='id', how='inner')
     print(id_vs_annotation_vs_gold_label.head())
     print(id_vs_annotation_vs_gold_label.shape)
+
+    # # display for worker id A2R2YZTSME1K3F
+    # print('Tuples for worker id A2R2YZTSME1K3F:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
+    # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # # do the same for A2R76CKAHFJ6JM
+    # print('Tuples for worker id A2R76CKAHFJ6JM:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
+    # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # # display for the ids 2499, 314, 2528, 3563
+    # print('Tuples for ids 2499, 314, 2528, 356:')
+    # # display only the id, worker_id, annotation
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['id'].isin([2499, 314, 2528, 3563])][['id', 'worker_id', 'annotation']])
 
     # In the annotation column, replace 'Yes' with 1.0 and 'No' with 0.0, and 'Cannot Determine' with 0.5
     print('Replacing annotations with numerical values:')
@@ -234,56 +260,106 @@ def analyze_results(exp_dir):
     print(tuples_with_undecided)
     print(tuples_with_undecided.shape)
 
+    edi_data_df_without_gold_label = edi_data_df.drop(columns=['gold_label'])
+    edi_data_df_without_gold_label = edi_data_df_without_gold_label.rename(columns={'gt_label': 'gold_expansion'})
+    id_vs_label_vs_gold_label = id_vs_label_vs_gold_label.merge(edi_data_df_without_gold_label, on='id', how='inner')
+    id_vs_label_vs_gold_label = id_vs_label_vs_gold_label[['id', 'table_name', 'column_name', 'expansion', 'label', 'gold_label', 'gold_expansion']]
+    
+    print()
+    print('ID vs Label vs Gold Label:')
+    print(id_vs_label_vs_gold_label.head())
+    print(id_vs_label_vs_gold_label.shape)
+    
     # Display the following metrics:
     # Positive predictions that were actually positive (TP)
     tp = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 1.0) & 
         (id_vs_label_vs_gold_label['gold_label'] == 1.0)
-    ].shape[0]
-    print('TP: ', tp)
+    ]
+    print()
+    print('TP tuples: \n', tp.head(20))
+    print('TP count: ', tp.shape[0])
+
     # Positive predictions that were actually negative (FP)
     fp = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 1.0) & 
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
-    ].shape[0]
-    print('FP: ', fp)
+    ]
+    print()
+    print('FP tuples: \n', fp.head(20))
+    print('FP count: ', fp.shape[0])
+    
     # Negative predictions that were actually positive (FN)
     fn = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.0) & 
         (id_vs_label_vs_gold_label['gold_label'] == 1.0)
-    ].shape[0]
-    print('FN: ', fn)
+    ]
+    print()
+    print('FN tuples: \n', fn.head(20))
+    print('FN count: ', fn.shape[0])
+    
     # Negative predictions that were actually negative (TN)
     tn = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.0) & 
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
-    ].shape[0]
-    print('TN: ', tn)
+    ]
+    print()
+    print('TN tuples: \n', tn.head(20))
+    print('TN count: ', tn.shape[0])
+
     # Cannot determine predictions that were actually positive
     cd_but_positive = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.51) & 
         (id_vs_label_vs_gold_label['gold_label'] == 1.0)
-    ].shape[0]
-    print('Cannot determine predictions that were actually positive: ', cd_but_positive)
+    ]
+    print()
+    print('Tuples of Cannot determine predictions that were actually positive: \n', cd_but_positive.head(20))
+    print('Count of Cannot determine predictions that were actually positive: ', cd_but_positive.shape[0])
+    
     # Cannot determine predictions that were actually negative
     cd_but_negative = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.51) & 
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
-    ].shape[0]
-    print('Cannot determine predictions that were actually negative: ', cd_but_negative)
+    ]
+    print()
+    print('Tuples of Cannot determine predictions that were actually negative: \n', cd_but_negative.head(20))
+    print('Count of Cannot determine predictions that were actually negative: ', cd_but_negative.shape[0])
+
     # undecided predictions that were actually positive
     undecided_but_positive = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.52) & 
         (id_vs_label_vs_gold_label['gold_label'] == 1.0)
-    ].shape[0]
-    print('Undecided predictions that were actually positive: ', undecided_but_positive)
+    ]
+    print()
+    print('Tuples of Undecided predictions that were actually positive: \n', undecided_but_positive.head(20))
+    print('Count of Undecided predictions that were actually positive: ', undecided_but_positive.shape[0])
+    
     # undecided predictions that were actually negative
     undecided_but_negative = id_vs_label_vs_gold_label[
         (id_vs_label_vs_gold_label['label'] == 0.52) & 
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
-    ].shape[0]
-    print('Undecided predictions that were actually negative: ', undecided_but_negative)
+    ]
+    print()
+    print('Tuples of Undecided predictions that were actually negative: \n', undecided_but_negative.head(20))
+    print('Count of Undecided predictions that were actually negative: ', undecided_but_negative.shape[0])
 
+    # complete set of gold yes
+    id_vs_label_vs_gold_label_yes = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['gold_label'] == 1.0]
+    print()
+    print('Complete set of gold yes: \n', id_vs_label_vs_gold_label_yes)
+    print('Count of complete set of gold yes: ', id_vs_label_vs_gold_label_yes.shape[0])
+    # save to csv
+    id_vs_label_vs_gold_label_yes.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_yes.csv', index=False)
+    
+    # complete set of gold no
+    id_vs_label_vs_gold_label_no = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['gold_label'] == 0.0]
+    print()
+    print('Complete set of gold no: \n', id_vs_label_vs_gold_label_no)
+    print('Count of complete set of gold no: ', id_vs_label_vs_gold_label_no.shape[0])
+    # save to csv
+    id_vs_label_vs_gold_label_no.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_no.csv', index=False)
+
+    print()
     total_input_tuples = original_data_df.shape[0]
     print('Total input tuples: ', total_input_tuples)
     total_final_labels = id_vs_label_vs_gold_label.shape[0]
@@ -292,6 +368,7 @@ def analyze_results(exp_dir):
     # Calculate Precision
 
     # Remove the tuples with labels as 'Cannot Determine' so they don't affect the precision calculation
+    print()
     print('Removing tuples with labels as \'Cannot Determine\':')
     id_vs_label_vs_gold_label = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['label'] != 0.51]
     print(id_vs_label_vs_gold_label.head())
@@ -365,4 +442,5 @@ def analyze_results(exp_dir):
 
 
 if __name__ == "__main__":
-    analyze_results(Path("exp_u1672_p107_w106_r118"))
+    exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/dummy_exp/')
+    analyze_results(exp_dir)
