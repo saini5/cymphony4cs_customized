@@ -7,7 +7,7 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from pathlib import Path
 
-EXP_DIR = Path('./fake-smartcat-exps/amt-curation/real-turkers/test_exp/')
+EXP_DIR = Path('./fake-smartcat-exps/amt-curation/real-turkers/dummy_exp/')
 TARGET_URL = 'http://127.0.0.1:8000' # Your Cymphony instance URL
 SMARTCAT_USERNAME = 'smartcat' # Cymphony user for Smartcat
 SMARTCAT_PASSWORD = 'smartcat_password' # Password for Smartcat user
