@@ -91,23 +91,67 @@ def analyze_results(exp_dir):
     print(id_vs_annotation_vs_gold_label.head())
     print(id_vs_annotation_vs_gold_label.shape)
 
-    # # display for worker id A2R2YZTSME1K3F
-    # print('Tuples for worker id A2R2YZTSME1K3F:')
-    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
-    # # how many did this worker answer as yes, no, and cannot determine
-    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    # print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
-    # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+    # Deeper analysis
+    print('========= Deeper Analysis ==================')
 
-    # # do the same for A2R76CKAHFJ6JM
-    # print('Tuples for worker id A2R76CKAHFJ6JM:')
-    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
-    # # how many did this worker answer as yes, no, and cannot determine
-    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    # print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
-    # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R76CKAHFJ6JM'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+    # display for worker id AKSJ3C5O3V9RB
+    print('Tuples for worker id AKSJ3C5O3V9RB:')
+    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # how many did this worker answer as yes, no, and cannot determine
+    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
+    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # do the same for A26MRON9XGPVB5
+    print('Tuples for worker id A26MRON9XGPVB5:')
+    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A26MRON9XGPVB5'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # how many did this worker answer as yes, no, and cannot determine
+    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A26MRON9XGPVB5'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A26MRON9XGPVB5'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
+    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A26MRON9XGPVB5'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # A31Z5TPD8QKE26
+    print('Tuples for worker id A31Z5TPD8QKE26:')
+    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    # show those labeled incorrectly
+    print('Tuples labeled incorrectly by A31Z5TPD8QKE26:')
+    # gold label is 1.0 for Yes and 0.0 for No
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['gold_label'] == 1.0][id_vs_annotation_vs_gold_label['annotation'] != 'Yes'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['gold_label'] == 0.0][id_vs_annotation_vs_gold_label['annotation'] != 'No'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(50))
+    # how many did this worker answer as yes, no, and cannot determine
+    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # A2R2YZTSME1K3F
+    print('Tuples for worker id A2R2YZTSME1K3F:')
+    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    # show those labeled incorrectly
+    print('Tuples labeled incorrectly by A2R2YZTSME1K3F:')
+    # gold label is 1.0 for Yes and 0.0 for No
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 1.0][id_vs_annotation_vs_gold_label['annotation'] != 'Yes'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 0.0][id_vs_annotation_vs_gold_label['annotation'] != 'No'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(50))
+    # how many did this worker answer as yes, no, and cannot determine
+    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+
+    # A2WGW5Y3ZFBDEC
+    print('Tuples for worker id A2WGW5Y3ZFBDEC:')
+    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # how many did this worker answer as yes, no, and cannot determine
+    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
+    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
 
     # # display for the ids 2499, 314, 2528, 3563
     # print('Tuples for ids 2499, 314, 2528, 356:')
@@ -125,6 +169,9 @@ def analyze_results(exp_dir):
     id_vs_annotation_vs_gold_label = id_vs_annotation_vs_gold_label[['worker_id', 'id', 'annotation', 'gold_label']]
     print(id_vs_annotation_vs_gold_label.head())
     print(id_vs_annotation_vs_gold_label.shape)
+    
+    # Create a copy of the dataframe for deeper analysis
+    id_vs_annotation_vs_gold_label_for_deeper_analysis = id_vs_annotation_vs_gold_label.copy()
 
     # Display the tuples with annotation as 'Cannot Determine'
     print('Tuples with annotation as \'Cannot Determine\':')
@@ -286,7 +333,7 @@ def analyze_results(exp_dir):
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
     ]
     print()
-    print('FP tuples: \n', fp.head(20))
+    print('FP tuples: \n', fp.head(35))
     print('FP count: ', fp.shape[0])
     
     # Negative predictions that were actually positive (FN)
@@ -365,6 +412,9 @@ def analyze_results(exp_dir):
     total_final_labels = id_vs_label_vs_gold_label.shape[0]
     print('Total final labels: ', total_final_labels)
 
+    # Create a copy of the dataframe for deeper analysis
+    id_vs_label_vs_gold_label_for_deeper_analysis = id_vs_label_vs_gold_label.copy()
+
     # Calculate Precision
 
     # Remove the tuples with labels as 'Cannot Determine' so they don't affect the precision calculation
@@ -394,52 +444,87 @@ def analyze_results(exp_dir):
     recall = correct_predictions / total_input_tuples
     print('Recall: ', recall)
 
+    # Deeper analysis
+    print('========= Deeper Analysis ==================')
 
+    # 1. Prepare the data for deeper analysis
+    # remove gold label
+    id_vs_annotation = id_vs_annotation_vs_gold_label_for_deeper_analysis.drop(columns=['gold_label'])  # annotation column could contain 1.0, 0.0, 0.5 (cannot determine)
+    # make the annotations more readable by converting 1.0 to 'Y', 0.0 to 'N', and 0.5 to 'C'
+    # id_vs_annotation['annotation'] = id_vs_annotation['annotation'].map({1.0: 'Y', 0.0: 'N', 0.5: 'C'})
+    
+    id_vs_label_vs_gold_label = id_vs_label_vs_gold_label_for_deeper_analysis   # label column could contain 1.0, 0.0, 0.51 (cannot determine), 0.52 (undecided)
+    
+    # 2. Analyze the data for deeper analysis
+    # 2. 1 what are the gold nos?
+    gold_nos = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['gold_label'] == 0.0]
+    # 2.1.1 out of these gold nos, which were labeled as yes by turkers?
+    gold_nos_labeled_as_yes = gold_nos[gold_nos['label'] == 1.0]
+    # 2.1.1.1 out of these gold nos that got labeled as yes, what is the annotation breakdown by turkers? For example, YYY, YYC, YYN? we might need to join with id_vs_annotation to get the annotations.
+    gold_nos_labeled_as_yes_annotations = gold_nos_labeled_as_yes.merge(id_vs_annotation, on='id', how='inner')
+    print('Gold nos labeled as yes annotations:')
+    print(gold_nos_labeled_as_yes_annotations.head(10))
+    print(gold_nos_labeled_as_yes_annotations.shape)
+    # for each id, list the annotations by turkers. example, 1, <1.0, 1.0, 1.0> such that the contents of the list are in decreasing order.
+    gold_nos_labeled_as_yes_annotations = gold_nos_labeled_as_yes_annotations.groupby('id').agg({'annotation': lambda x: sorted(list(x), reverse=True)})
+    print('Gold nos labeled as yes annotations breakdown (grouped by id):')
+    print(gold_nos_labeled_as_yes_annotations.head(35))
+    print(gold_nos_labeled_as_yes_annotations.shape)
+    # count the number of times each annotation combination occurs
+    gold_nos_labeled_as_yes_annotations['annotation_tuple'] = gold_nos_labeled_as_yes_annotations['annotation'].apply(tuple)
+    print('Gold nos labeled as yes annotations tuple:')
+    print(gold_nos_labeled_as_yes_annotations['annotation_tuple'].head(35))
+    print(gold_nos_labeled_as_yes_annotations['annotation_tuple'].shape)
+    gold_nos_labeled_as_yes_annotations_count = gold_nos_labeled_as_yes_annotations.groupby('annotation_tuple').size().rename('count')
+    print('Gold nos labeled as yes annotations breakdown (counted by annotation tuple):')
+    print(gold_nos_labeled_as_yes_annotations_count.head(10))
+    print(gold_nos_labeled_as_yes_annotations_count.shape)
+    
+    # 2.1.2 out of these gold nos, which were labeled as NOT yes by turkers?
+    gold_nos_labeled_as_not_yes = gold_nos[gold_nos['label'] != 1.0]    # this means gold_nos['label'] is 0.0 or 0.51 or 0.52
+    # 2.1.2.1 out of these gold nos that got labeled as not yes, what is the annotation breakdown by turkers? For example, NNN, NNC, NNY? we need to join with id_vs_annotation to get the annotations.
+    gold_nos_labeled_as_not_yes_annotations = gold_nos_labeled_as_not_yes.merge(id_vs_annotation, on='id', how='inner')
+    print('Gold nos labeled as not yes annotations:')
+    print(gold_nos_labeled_as_not_yes_annotations.head(45))
+    print(gold_nos_labeled_as_not_yes_annotations.shape)
+    # for each id, list the annotations by turkers. example, 1, <0.0, 0.0, 0.0> such that the contents of the list are in decreasing order.
+    gold_nos_labeled_as_not_yes_annotations = gold_nos_labeled_as_not_yes_annotations.groupby('id').agg({'annotation': lambda x: sorted(list(x), reverse=True)})
+    print('Gold nos labeled as not yes annotations breakdown (grouped by id):')
+    print(gold_nos_labeled_as_not_yes_annotations.head(15))
+    print(gold_nos_labeled_as_not_yes_annotations.shape)
+    # count the number of times each annotation combination occurs
+    gold_nos_labeled_as_not_yes_annotations['annotation_tuple'] = gold_nos_labeled_as_not_yes_annotations['annotation'].apply(tuple)
+    print('Gold nos labeled as not yes annotations tuple:')
+    print(gold_nos_labeled_as_not_yes_annotations['annotation_tuple'].head(15))
+    print(gold_nos_labeled_as_not_yes_annotations['annotation_tuple'].shape)
+    gold_nos_labeled_as_not_yes_annotations_count = gold_nos_labeled_as_not_yes_annotations.groupby('annotation_tuple').size().rename('count')
+    print('Gold nos labeled as not yes annotations breakdown (counted by annotation tuple):')
+    print(gold_nos_labeled_as_not_yes_annotations_count.head(10))
+    print(gold_nos_labeled_as_not_yes_annotations_count.shape)
 
-    # # original_data_df = original_data_df.head(70)
-    # # final_labels_df = final_labels_df.head(70)
-    # # print(original_data_df)
-    # # print(final_labels_df)
-
-    # # join the final_labels_df with the original_data_df on the _id column
-    # final_labels_df = final_labels_df.merge(original_data_df, on='_id', how='inner')
-    # print(final_labels_df.head())
-    # # print(final_labels_df)
-    # print(final_labels_df.shape)
-    # # get the accuracy of the labels by comparing with the Match (gold_label) column
-    # numerator = sum(final_labels_df['gold_label'] == final_labels_df['label'])
-    # denominator = len(final_labels_df)
-    # accuracy = numerator / denominator
-    # print(f'Accuracy = {numerator} / {denominator} = {accuracy}')
-    # accuracy = accuracy_score(final_labels_df['gold_label'], final_labels_df['label'])
-    # print('Accuracy: ', accuracy)
-    # # precision = precision_score(final_labels_df['gold_label'], final_labels_df['label'])
-    # # print('Precision: ', precision)
-    # # recall = recall_score(final_labels_df['gold_label'], final_labels_df['label'])
-    # # print('Recall: ', recall)
-    # # f1 = f1_score(final_labels_df['gold_label'], final_labels_df['label'])
-    # # print('F1 Score: ', f1)
-    # cm = confusion_matrix(final_labels_df['gold_label'], final_labels_df['label'], labels=[0.0, 1.0])
-    # print('Confusion Matrix: ', cm)
-
-    # TN, FP, FN, TP = cm.ravel()
-    # print('TN: ', TN)
-    # print('FP: ', FP)
-    # print('FN: ', FN)
-    # print('TP: ', TP)
-
-    # # show those rows where final_labels_df gold_label is not equal to label
-    # failures = final_labels_df[final_labels_df['gold_label'] != final_labels_df['label']]
-    # print('All failures: ', failures.shape)
-    # print(failures.head())
-    # print(failures)
-    # failures_fp = failures[failures['gold_label'] == 0.0]
-    # print('FP failures: ', failures_fp.shape)
-    # print(failures_fp.head())
-    # failures_fn = failures[failures['gold_label'] == 1.0]
-    # print('FN failures: ', failures_fn.shape)
-    # print(failures_fn.head())
-
+    # 2. 1 what are the gold yes?
+    gold_yes = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['gold_label'] == 1.0]
+    # 2.1.1 out of these gold yes, which were labeled as yes by turkers?
+    gold_yes_labeled_as_yes = gold_yes[gold_yes['label'] == 1.0]
+    # 2.1.1.1 out of these gold yes that got labeled as yes, what is the annotation breakdown by turkers? For example, YYY, YYC, YYN? we need to join with id_vs_annotation to get the annotations.
+    gold_yes_labeled_as_yes_annotations = gold_yes_labeled_as_yes.merge(id_vs_annotation, on='id', how='inner')
+    print('Gold yes labeled as yes annotations:')
+    print(gold_yes_labeled_as_yes_annotations.head(10))
+    print(gold_yes_labeled_as_yes_annotations.shape)
+    # for each id, list the annotations by turkers. example, 1, <1.0, 1.0, 1.0> such that the contents of the list are in decreasing order.
+    gold_yes_labeled_as_yes_annotations = gold_yes_labeled_as_yes_annotations.groupby('id').agg({'annotation': lambda x: sorted(list(x), reverse=True)})
+    print('Gold yes labeled as yes annotations breakdown (grouped by id):')
+    print(gold_yes_labeled_as_yes_annotations.head(50))
+    print(gold_yes_labeled_as_yes_annotations.shape)
+    # count the number of times each annotation combination occurs
+    gold_yes_labeled_as_yes_annotations['annotation_tuple'] = gold_yes_labeled_as_yes_annotations['annotation'].apply(tuple)
+    print('Gold yes labeled as yes annotations tuple:')
+    print(gold_yes_labeled_as_yes_annotations['annotation_tuple'].head(50))
+    print(gold_yes_labeled_as_yes_annotations['annotation_tuple'].shape)
+    gold_yes_labeled_as_yes_annotations_count = gold_yes_labeled_as_yes_annotations.groupby('annotation_tuple').size().rename('count')
+    print('Gold yes labeled as yes annotations breakdown (counted by annotation tuple):')
+    print(gold_yes_labeled_as_yes_annotations_count.head(10))
+    print(gold_yes_labeled_as_yes_annotations_count.shape)
 
 if __name__ == "__main__":
     exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/dummy_exp/')
