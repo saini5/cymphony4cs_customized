@@ -835,6 +835,7 @@ def add_to_mapping_task_id_vs_hit_info(mapping_task_id_vs_hit_info: dict, batch_
 
 def coordinate_cymphony_amt(obj_job: job_components.Job, mturk_client: boto3.client):
     """Periodically ping amt to fetch task responses, aggregate them, and finish the 3a_amt job if conditions are met"""
+    time.sleep(settings.AMT_PING_FREQUENCY)
     while True:
         print('Woken up')
         start_ts = time.time()
