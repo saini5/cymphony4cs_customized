@@ -84,7 +84,7 @@ create_workflow_response = s.post(create_workflow_url, data=create_workflow_data
 print(create_workflow_response.content)
 workflow_id = create_workflow_response.json().get('workflow_id')
 upload_workflow_files_url = TARGET_URL + '/controller/?category=workflow&action=edit_workflow_upload_files&pid=' + str(project_id) + '&wid=' + str(workflow_id)
-with open(EXP_DIR / 'data' / 'edi250_maverick_preprocessed_data.csv', 'rb') as f:
+with open(EXP_DIR / 'data' / 'edi250_maverick_preprocessed_1.csv', 'rb') as f:
     upload_workflow_files_response = s.post(upload_workflow_files_url, files={'fname': f})
 with open(EXP_DIR / 'instructions' / 'instructions.html', 'rb') as f:
     upload_workflow_files_response = s.post(upload_workflow_files_url, files={'fname': f})
