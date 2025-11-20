@@ -732,6 +732,8 @@ def prepare_and_push_hit(
         html_question=html_question,
         configuration_amt_specification=configuration_amt_specification
     )
+    # Add a slight delay to avoid overwhelming amt
+    time.sleep(settings.AMT_HIT_DELAY)
     return hit_info
 
 
@@ -935,6 +937,8 @@ def collect_amt_responses(mturk_client: boto3.client, hits: set):
             # no results for tasks in this hit yet
             # no task entries made in responses
             pass
+        # Add a slight delay to avoid overwhelming amt
+        time.sleep(settings.AMT_HIT_DELAY)
     return responses
 
 

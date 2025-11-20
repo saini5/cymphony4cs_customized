@@ -318,6 +318,8 @@ AMT_DEFAULTS = {
 
 AMT_PING_FREQUENCY = 360    # in seconds (360 = 6 minutes)
 
+AMT_HIT_DELAY = 0.025    # in seconds (25 milliseconds)
+
 AMT_ASSIGNMENT_STATUS = ['Submitted', 'Approved', 'Rejected']
 
 AMT_DEFAULT_AGGREGATION_LABEL = 'undecided'

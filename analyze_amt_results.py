@@ -98,6 +98,12 @@ def analyze_results(exp_dir):
     # print('Tuples for worker id AKSJ3C5O3V9RB:')
     # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
     # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # show those labeled incorrectly
+    # print('Tuples labeled incorrectly by AKSJ3C5O3V9RB:')
+    # # gold label is 1.0 for Yes and 0.0 for No
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['gold_label'] == 1.0][id_vs_annotation_vs_gold_label['annotation'] != 'Yes'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['gold_label'] == 0.0][id_vs_annotation_vs_gold_label['annotation'] != 'No'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(50))
+
     # # how many did this worker answer as yes, no, and cannot determine
     # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
     # print('Number of no answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'AKSJ3C5O3V9RB'][id_vs_annotation_vs_gold_label['annotation'] == 'No'].shape[0])
@@ -128,60 +134,60 @@ def analyze_results(exp_dir):
     # print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
     # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A31Z5TPD8QKE26'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
 
-    # A2R2YZTSME1K3F
-    print('Tuples for worker id A2R2YZTSME1K3F:')
-    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
-    # show those labeled incorrectly
-    print('Tuples labeled incorrectly by A2R2YZTSME1K3F:')
-    # gold label is 1.0 for Yes and 0.0 for No
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 1.0][id_vs_annotation_vs_gold_label['annotation'] != 'Yes'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 0.0][id_vs_annotation_vs_gold_label['annotation'] != 'No'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(50))
-    # how many did this worker answer as yes, no, and cannot determine
-    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
-    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
-    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
-    print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
+    # # A2R2YZTSME1K3F
+    # print('Tuples for worker id A2R2YZTSME1K3F:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    # # show those labeled incorrectly
+    # print('Tuples labeled incorrectly by A2R2YZTSME1K3F:')
+    # # gold label is 1.0 for Yes and 0.0 for No
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 1.0][id_vs_annotation_vs_gold_label['annotation'] != 'Yes'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(40))
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['gold_label'] == 0.0][id_vs_annotation_vs_gold_label['annotation'] != 'No'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']].head(50))
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    # print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    # print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    # print('Number of cannot determine answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2R2YZTSME1K3F'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine'].shape[0])
 
-    # A2WGW5Y3ZFBDEC
-    print('Tuples for worker id A2WGW5Y3ZFBDEC:')
-    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
-    # how many did this worker answer as yes, no, and cannot determine
-    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
-    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
-    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
-    cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
-    print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
-    print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
+    # # A2WGW5Y3ZFBDEC
+    # print('Tuples for worker id A2WGW5Y3ZFBDEC:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    # print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    # print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    # cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A2WGW5Y3ZFBDEC'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
+    # print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
+    # print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
     
-    # A149ROBL26JWPJ
-    print('Tuples for worker id A149ROBL26JWPJ:')
-    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
-    # how many did this worker answer as yes, no, and cannot determine
-    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
-    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
-    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
-    cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
-    print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
-    print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
+    # # A149ROBL26JWPJ
+    # print('Tuples for worker id A149ROBL26JWPJ:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    # print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    # print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    # cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A149ROBL26JWPJ'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
+    # print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
+    # print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
 
-    # A22KRF782ELLB0
-    print('Tuples for worker id A22KRF782ELLB0:')
-    # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
-    print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
-    # how many did this worker answer as yes, no, and cannot determine
-    print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
-    nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
-    print('No tuples for this worker: \n', nos_for_this_worker.head(40))
-    print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
-    cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
-    print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
-    print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
+    # # A22KRF782ELLB0
+    # print('Tuples for worker id A22KRF782ELLB0:')
+    # # print only the id, worker_id, annotation, gold_label, column_name_x, expansion_x
+    # print(id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][['id', 'worker_id', 'annotation', 'gold_label', 'column_name_x', 'expansion_x']])
+    # # how many did this worker answer as yes, no, and cannot determine
+    # print('Number of yes answers: ', id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'Yes'].shape[0])
+    # nos_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'No']
+    # print('No tuples for this worker: \n', nos_for_this_worker.head(40))
+    # print('Number of no answers (with count): ', nos_for_this_worker.shape[0])
+    # cannot_determine_for_this_worker = id_vs_annotation_vs_gold_label[id_vs_annotation_vs_gold_label['worker_id'] == 'A22KRF782ELLB0'][id_vs_annotation_vs_gold_label['annotation'] == 'Cannot Determine']
+    # print('Cannot determine tuples for this worker: \n', cannot_determine_for_this_worker.head(40))
+    # print('Number of cannot determine answers (with count): ', cannot_determine_for_this_worker.shape[0])
 
     # # display for the ids 2499, 314, 2528, 3563
     # print('Tuples for ids 2499, 314, 2528, 356:')
@@ -363,7 +369,7 @@ def analyze_results(exp_dir):
         (id_vs_label_vs_gold_label['gold_label'] == 0.0)
     ]
     print()
-    print('FP tuples: \n', fp.head(20))
+    print('FP tuples: \n', fp.head(50))
     print('FP count: ', fp.shape[0])
     
     # Negative predictions that were actually positive (FN)
