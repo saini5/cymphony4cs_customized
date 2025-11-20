@@ -1,5 +1,6 @@
 # Ignore specific files
 setenv.bat
+set_amt_env.bat
 
 # Ignore archived files
 cymphony4cs/run_workflow_pipeline.py
