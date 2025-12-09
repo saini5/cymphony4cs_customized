@@ -243,10 +243,10 @@ def drive_by_curate(request: HttpRequest):
 
     # Parse the composite run id
     user_id, project_id, workflow_id, run_id = composite_run_id.split('.')
-    print(f"User ID: {user_id}, Project ID: {project_id}, Workflow ID: {workflow_id}, Run ID: {run_id}")
+    # print(f"User ID: {user_id}, Project ID: {project_id}, Workflow ID: {workflow_id}, Run ID: {run_id}")
     # Parse the curations
     curations = json.loads(curations)
-    print(f"Curations: {curations}")
+    # print(f"Curations: {curations}")
 
     # Figure out the sole 3a_kn(lm) job for this run
     obj_job = job_dao.find_3a_kn_job(run_id=run_id, workflow_id=workflow_id, project_id=project_id, user_id=user_id)
@@ -255,9 +255,9 @@ def drive_by_curate(request: HttpRequest):
     if not obj_job:
         return JsonResponse({'status': 'error', 'message': 'No 3a_kn or 3a_knlm job found for this run'}, status=404)
     
-    print(f"Found the 3a_kn or 3a_knlm job for this run")
-    print(f"Job: {obj_job}")
-    print(f"Job ID: {obj_job.id}")
+    # print(f"Found the 3a_kn or 3a_knlm job for this run")
+    # print(f"Job: {obj_job}")
+    # print(f"Job ID: {obj_job.id}")
     
     # Figure out the id_field_name from the workflow file
     workflow_files = workflow_dao.find_all_files(user_id=user_id, project_id=project_id, workflow_id=workflow_id)
@@ -267,36 +267,36 @@ def drive_by_curate(request: HttpRequest):
             break
     if id_field_name is None:
         return JsonResponse({'status': 'error', 'message': 'No id_field_name found for this workflows data file.'}, status=404)
-    print(f"Id field name: {id_field_name}")
+    # print(f"Id field name: {id_field_name}")
     
     # Insert the curations into the drive_by_curation_votes table where x goes to id_field_name and v goes to annotation and u goes to user_id
     job_dao.insert_drive_by_curation_votes(obj_job=obj_job, curations=curations, id_field_name=id_field_name)
-    print(f"Inserted the curations into the drive_by_curation_votes table")
+    # print(f"Inserted the curations into the drive_by_curation_votes table")
 
     # Replace the worker_id with the user_id in all curations in-memory
     for curation in curations:
         curation[1] = user_id
-    print(f"Replaced the worker_id with the user_id in all curations in-memory")
-    print(f"Curations: {curations}")
+    # print(f"Replaced the worker_id with the user_id in all curations in-memory")
+    # print(f"Curations: {curations}")
     # Create a job prefixed temp table to store the current annotations
     job_dao.create_temp_table(obj_job=obj_job, id_field_name=id_field_name)
     job_dao.insert_temp_curations(obj_job=obj_job, curations=curations, id_field_name=id_field_name)
     # Join the temp table with the tuples table to get the task_id vs worker_id vs annotation
     annotations = job_dao.join_temp_table_with_tuples(obj_job=obj_job, id_field_name=id_field_name)
-    print(f"Joined the temp table with the tuples table to get the task_id vs worker_id vs annotation")
-    print(f"Annotations: {annotations}")
+    # print(f"Joined the temp table with the tuples table to get the task_id vs worker_id vs annotation")
+    # print(f"Annotations: {annotations}")
 
     # Add these drive-by votes to the outputs table
     job_dao.add_drive_by_votes_to_outputs(obj_job=obj_job, curations=annotations)
-    print(f"Added the drive-by votes to the outputs table")
+    # print(f"Added the drive-by votes to the outputs table")
 
     # Aggregate these ad-hoc curations
     job_dao.aggregate_while_drive_by_curating(obj_job=obj_job, curations=annotations)
-    print(f"Aggregated the drive-by votes to the aggregations table")
+    # print(f"Aggregated the drive-by votes to the aggregations table")
     
     # Destroy the temp table
     job_dao.destroy_temp_table(obj_job=obj_job)
-    print(f"Destroyed the temp table")
+    # print(f"Destroyed the temp table")
 
     return JsonResponse({'status': 'success', 'message': 'Drive by curations received and processed'}, status=200)
     # except Exception as e:

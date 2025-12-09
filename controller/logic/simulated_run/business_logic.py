@@ -68,6 +68,7 @@ def create(request: HttpRequest):
     elif request.method == 'POST':  # create simulated run based on form response
         run_id = request.GET.get('rid', -1)
         if run_id == -1:    # no run id specified
+            notification_url = request.POST.get('notification_url', None)
             # encapsulate the run details, and create a new run
             obj_simulated_run = run_components.Run(
                 workflow_id=workflow_id,
@@ -76,7 +77,8 @@ def create(request: HttpRequest):
                 run_name=request.POST['s_r_name'],
                 run_description=request.POST['s_r_desc'],
                 run_type=run_type,
-                run_status=settings.RUN_STATUS[0]   # "IDLE"
+                run_status=settings.RUN_STATUS[0],   # "IDLE"
+                notification_url=notification_url
             )
 
             # 1. store entry in db

@@ -732,6 +732,8 @@ def prepare_and_push_hit(
         html_question=html_question,
         configuration_amt_specification=configuration_amt_specification
     )
+    # Add a slight delay to avoid overwhelming amt
+    time.sleep(settings.AMT_HIT_DELAY)
     return hit_info
 
 
@@ -835,6 +837,7 @@ def add_to_mapping_task_id_vs_hit_info(mapping_task_id_vs_hit_info: dict, batch_
 
 def coordinate_cymphony_amt(obj_job: job_components.Job, mturk_client: boto3.client):
     """Periodically ping amt to fetch task responses, aggregate them, and finish the 3a_amt job if conditions are met"""
+    time.sleep(settings.AMT_PING_FREQUENCY)
     while True:
         print('Woken up')
         start_ts = time.time()
@@ -934,6 +937,8 @@ def collect_amt_responses(mturk_client: boto3.client, hits: set):
             # no results for tasks in this hit yet
             # no task entries made in responses
             pass
+        # Add a slight delay to avoid overwhelming amt
+        time.sleep(settings.AMT_HIT_DELAY)
     return responses
 
 

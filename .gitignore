@@ -1,5 +1,6 @@
 # Ignore specific files
 setenv.bat
+set_amt_env.bat
 
 # Ignore archived files
 cymphony4cs/run_workflow_pipeline.py
@@ -12,6 +13,8 @@ cymphony/
 # Ignore user experiment folders
 experiments/
 fake-smartcat-exps/
+steward_simulation_archive/
+worker_stats_archive/
 
 # General ignores below
 

@@ -1,30 +1,20 @@
 """
-Simulate stewards on a job, to run synthetic bulk exp with stewards.
+Simulate workers on a job, to run synthetic drive-by exp with workers.
 A. Helper files
-    a. A static pool of stewards in stewards.csv which contains the username and password of the stewards.
-    b. A log file for the current simulation. Create a log file for the current simulation. Include the current timestamp in the file name. The file name should be of the format: steward_simulation_YYYYMMDD_HHMMSS.log
+    a. A log file for the current simulation. Create a log file for the current simulation. 
+    Include the current timestamp in the file name. The file name should be of the format: steward_simulation_YYYYMMDD_HHMMSS.log
+    b. A csv file to store per worker statistics.
 B. Input simulation parameters.
     a. User inputs the target job's information. Store the target job info in the log file.
     b. User inputs the simulation parameters. Store the simulation parameters in the log file.
 C. Run the simulation.
     a. Run the overall simulation loop.
-    b. For each loop point, run the stewards simulation loop. From a pool of stewards in stewards.csv, pick the number of stewards to be used in this loop point.
-    c. When each steward is finished, store the work statistics in the log file.
-
-Notes:
-You could make some changes to make it more identical to simulate_workers.py like:
-1. In real scenario, job id is not known in advance, so we need to get it from job index call.
-2. Remove recall calculation and hence remove size_data_job parameter.
-3. Remove prints.
-4. Add csv file to store per steward statistics.
-
-We don't need all of these changes since
-1. For the goal of simulating, it is okay to put in the job id there manually.
-2. No harm in extra recall statistic.
-3. No harm in prints since there are only 2 stewards.
-4. No harm in not having a csv file to store per steward statistics since there are only 2 stewards.
+    b. For each loop point, run the worker simulation loop. 
+    c. When each worker is finished, store the work statistics in the log file.
 
 """
+
+from datetime import datetime
 import random
 import time
 import threading
@@ -40,10 +30,12 @@ from pathlib import Path
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s',
-    filename='steward_sim.logg',
+    filename='simulate_workers.logg',
     filemode='a'
 )
 logger = logging.getLogger(__name__)
+
+file_lock = threading.Lock()
 
 def create_log():
     timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -51,20 +43,14 @@ def create_log():
     log_file = open(log_file_name, 'w')
     return log_file
 
-def get_list_of_stewards():
-    list_of_stewards: list = []
-    with open('stewards.csv', 'r') as f:
-        reader = csv.reader(f)
-        # skip header row
-        next(reader)
-        for row in reader:
-            list_of_stewards.append({
-                'username': row[0],
-                'password': row[1]
-            })
-    return list_of_stewards
+def create_csv():
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    csv_file_name = Path(f'worker_statistics_{timestamp}.csv')
+    with open(csv_file_name, 'w') as csv_file:
+        csv_file.write('worker_username,worker_precision,total_matches,total_annotated\n')
+    return csv_file_name
 
-def set_target_job_info(job_id: int, run_id: int, workflow_id: int, project_id: int, user_id: int, size_data_job: int, job_category: str, gold_label_column_name: str):
+def set_target_job_info(run_id: int, workflow_id: int, project_id: int, user_id: int, job_category: str, gold_label_column_name: str, job_id: int = -1):
     """Get the target job from the database"""
     target_job_info = {
         'job_id': job_id,
@@ -72,7 +58,6 @@ def set_target_job_info(job_id: int, run_id: int, workflow_id: int, project_id: 
         'workflow_id': workflow_id,
         'project_id': project_id,
         'user_id': user_id,
-        'size_data_job': size_data_job,
         'job_category': job_category,
         'gold_label_column_name': gold_label_column_name
     }
@@ -87,7 +72,7 @@ def store_target_job_info(target_job_info: dict, log_file=None):
 
 def set_simulation_parameters(
     loop_times: int,
-    workers_per_burst: int,
+    workers_per_burst: list,
     time_gaps: list,
     time_durations: list,
     annotation_times: list,
@@ -111,7 +96,7 @@ def store_simulation_parameters(simulation_parameters: dict, log_file=None):
     log_file.write(f'Simulation parameters: {simulation_parameters}\n')
     return
 
-def simulate_stewards_on_job(simulation_parameters: dict, job_info: dict, log_file=None):
+def simulate_workers_on_job(simulation_parameters: dict, job_info: dict, log_file=None, csv_file=None):
     """Generates synthetic workers and makes them work on the job based on the specified simulation params"""
 
     loop_times = simulation_parameters['loop_times']
@@ -124,9 +109,6 @@ def simulate_stewards_on_job(simulation_parameters: dict, job_info: dict, log_fi
     # will store these in the log file, just after simulating all workers below
     parameters_simulation_workers: list = []
     statistics_simulation_workers: list = []
-    
-    list_of_stewards = get_list_of_stewards()
-    print('List of stewards: ', list_of_stewards)
 
     for i in range(0, loop_times):
         start_ts = time.time()
@@ -135,21 +117,19 @@ def simulate_stewards_on_job(simulation_parameters: dict, job_info: dict, log_fi
         # loop point (burst) identifier
         parameters_info['identifier'] = i
         statistics_info['identifier'] = i
-        workers_in_this_burst = workers_per_burst
+        workers_in_this_burst = workers_per_burst[i]
         parameters_info['number_workers'] = workers_in_this_burst
         j = 0
         while j < workers_in_this_burst:
-            steward = list_of_stewards.pop(0)
             y = threading.Thread(
-                target=run_steward_pipeline,
-                args=(
-                    steward['username'], 
-                    steward['password'], 
+                target=run_worker_pipeline,
+                args=( 
                     accuracies[i],
                     annotation_times[i],
                     time_durations[i],
                     job_info, 
-                    log_file
+                    log_file,
+                    csv_file
                 )
             )
             y.start()
@@ -186,7 +166,7 @@ def store_actual_simulation_statistics(statistics_simulation_workers: list, log_
     log_file.write(f'Actual simulation statistics: {statistics_simulation_workers}\n')
     return
 
-def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotation_time: int, time_duration: int, job_info: dict, log_file=None):
+def run_worker_pipeline(accuracy: float, annotation_time: int, time_duration: int, job_info: dict, log_file=None, csv_file=None):
     """Simulating the working of one single synthetic worker"""
     job_category = job_info['job_category']
     GOLD_LABEL_COLUMN_NAME = job_info['gold_label_column_name']
@@ -202,7 +182,7 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
     # initializations
     s = Session()
     submit_retries = Retry(
-        total=5,
+        total=1,
         backoff_factor=1,
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -210,32 +190,69 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
     s.mount(target_url, HTTPAdapter(max_retries=submit_retries))
     s.headers = {'User-Agent': 'python-requests/1.2.0'}
 
-    # 1. signup (Not applicable for stewards since they are already created by admin)
+    user_name = 'syn_' + \
+        'u_' + str(job_info['user_id']) + \
+        'p_' + str(job_info['project_id']) + \
+        'w_' + str(job_info['workflow_id']) + \
+        'r_' + str(job_info['run_id']) + \
+        '__' + str(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    password = 'This1sATe5t'
 
+    # 1. signup 
+    signup_url = target_url + '/one_step_register/'     # This url skips the activation link verification process
+    signup_data = {
+        'first_name': user_name,
+        'last_name': user_name,
+        # TODO (bypassed it instead): will have to disable email uniqueness and verification check
+        'email': user_name + '@email.com',
+        'username': user_name,
+        'password1': password,
+        'password2': password,
+    }
+    call_signup(s, signup_url, signup_data)
+    
     # 2. login
-    login_url = target_url + '/login/'
-    call_login(s, login_url, user_name, password)
+    # not needed since one_step_register based signup logs the worker in automatically.
+    # login_url = target_url + '/login/'
+    # call_login(s, login_url, user_name, password)
 
     # 3. dashboard
     call_dashboard(s, target_url)
 
     # 4. job index
     job_index_url = target_url + '/controller/?category=' + job_category + '&action=index'
-    call_job_index(s, job_index_url)
+    job_response = call_job_index(s, job_index_url)
+    job_response_json = job_response.json()
+    # print('Job response JSON: ', job_response_json)
+    job_listing = job_response_json.get('list_3a_knlm_jobs') if job_category == 'job_3a_knlm' else job_response_json.get('list_3a_kn_jobs')
+    if job_listing is None:
+        print('No job listing found. Exiting.')
+        return
+    target_jobs: list = []
+    for job in job_listing:
+        # print("Job: ", job, type(job.get('project_id')))
+        # print("Job Info: ", job_info, type(job_info['project_id']))
+        if job.get('project_id') == job_info['project_id'] and job.get('workflow_id') == job_info['workflow_id'] and job.get('run_id') == job_info['run_id']:
+            target_jobs.append(job)
+    if len(target_jobs) > 1:
+        print('Multiple jobs found in this run. Exiting.')
+        return
+    elif len(target_jobs) == 0:
+        print('No job found. Exiting.')
+        return
+    else:
+        target_job = target_jobs[0]
+        job_info['job_id'] = target_job.get('job_id')
+        # print('My target job is: ', target_job)
 
-    # basic computation for determining number of labels to match in simulation
-    # target_p = worker_accuracy
-    total_size_tuples = int(job_info['size_data_job'])
-    # target_total_matches = int(target_p * float(total_size_tuples))
-    # target_total_non_matches = int(total_size_tuples) - target_total_matches
     total_matches_so_far = 0
     total_annotated_so_far = 0
     
     start_ts = time.time()
-    print('Worker time duration: ', worker_time_duration)
-    print('Start time: ', start_ts)
-    print('Current time: ', time.time())
-    print('Time difference: ', time.time() - start_ts)
+    # print('Worker time duration: ', worker_time_duration)
+    # print('Start time: ', start_ts)
+    # print('Current time: ', time.time())
+    # print('Time difference: ', time.time() - start_ts)
     worker_code = None
     while (time.time() - start_ts) < worker_time_duration:
         # 5. call work on job
@@ -252,20 +269,18 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
         for key, value in call_work_on_job_json_response.items():
             work_response_information[key] = value
         worker_code = work_response_information.get('worker_code')
-        print('Worker code: ', worker_code)
+        # print('Worker code: ', worker_code)
         if worker_code == 3:    # QUIT
             # store worker parameters that got decided based on simulation parameters
             store_actual_simulation_parameters_per_worker(
                 worker_username=user_name, 
                 worker_reliability=worker_accuracy,
                 worker_annotation_time=worker_annotation_time,
-                user_name=user_name,
                 log_file=log_file
             )
             # compute statistics of worker, pertaining to worker's interaction with cymphony
-            (precision, recall) = compute_worker_statistics(
+            precision = compute_worker_statistics(
                 total_matches_so_far=total_matches_so_far,
-                total_size_tuples=total_size_tuples,
                 total_annotated_so_far=total_annotated_so_far,
                 accuracy=worker_accuracy,
                 user_name=user_name
@@ -274,12 +289,10 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
             store_actual_simulation_statistics_per_worker(
                 worker_username=user_name, 
                 worker_precision=precision,
-                worker_recall=recall,
                 total_matches_so_far=total_matches_so_far,
                 total_annotated_so_far=total_annotated_so_far,
-                total_size_tuples=total_size_tuples,
-                user_name=user_name,
-                log_file=log_file
+                log_file=log_file,
+                csv_file=csv_file
             )
             # worker has finished interacting with cymphony
             # print("Thread finishing for worker with username: ", user_name)
@@ -296,49 +309,7 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                 label_to_annotate_with = None
                 # worker takes some time to decided his/her choice
                 time.sleep(worker_annotation_time)
-                # label_annotate_with is set to gold_label or not based on below computation
-                # once hit intended number of matches, always go into the non-matching section of code,
-                # once hit the number of non-matches, always go into the matching section.
-                # This will ensure the actual worker accuracy to be exactly equal to
-                #   intended accuracy in case worker annotates all tuples.
-                # If worker does not get to annotate all tuples in data, probability based matching is done,
-                #   which is good since it will not allow first all yes, then all no,
-                #   but all no got eliminated because worker never got to annotate later tuples.
-                # So, probability based matching is the best possible case already in that scenario,
-                #   and will ensure worker accuracy to be closest to intended accuracy of worker.
                 
-                # total_non_matches_so_far = total_annotated_so_far - total_matches_so_far
-                # if total_non_matches_so_far >= target_total_non_matches:
-                #     # print("Non matches had exhausted.")
-                #     # all intended non-matches exhausted, choose to match
-                #     label_to_annotate_with = gold_label
-                #     total_matches_so_far = total_matches_so_far + 1
-                # elif total_matches_so_far >= target_total_matches:
-                #     # print("Matches had exhausted.")
-                #     # all intended matches exhausted, choose to not match
-                #     # any label (out of the available options) but the gold label
-                #     if task_option_list is None:    # free text answer
-                #         label_to_annotate_with = gold_label + str(random.randint(1,10))
-                #     else:   # answer has to be from a set of choices
-                #         choices: list = task_option_list.copy()
-                #         choices.remove(gold_label)
-                #         label_list: list = random.choices(choices, k=1)
-                #         label_to_annotate_with = label_list[0]
-                # else:  # edge cases did not get hit, so go with normal case of picking based on probability.
-                #     # print("Probability based choice selection")
-                #     match = random.choices([0, 1], weights=(target_total_non_matches, target_total_matches), k=1)
-                #     if match[0] == 1:
-                #         label_to_annotate_with = gold_label
-                #         total_matches_so_far = total_matches_so_far + 1
-                #     else:
-                #         # any label (out of the available options) but the gold label
-                #         if task_option_list is None:  # free text answer
-                #             label_to_annotate_with = gold_label + str(random.randint(1, 10))
-                #         else:  # answer has to be from a set of choices
-                #             choices = task_option_list.copy()
-                #             choices.remove(gold_label)
-                #             label_list: list = random.choices(choices, k=1)
-                #             label_to_annotate_with = label_list[0]
                 if random.random() < worker_accuracy:   # Tosses a coin with say 83% probability of being correct, where accuracy is the probability of being correct.
                     label_to_annotate_with = gold_label
                     total_matches_so_far = total_matches_so_far + 1
@@ -351,7 +322,7 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                         label_list: list = random.choices(choices, k=1)
                         label_to_annotate_with = label_list[0]
 
-                print('Total annotated so far: ', total_annotated_so_far)
+                # print('Total annotated so far: ', total_annotated_so_far)
                 total_annotated_so_far = total_annotated_so_far + 1
                 # send the label to annotate with as well
                 
@@ -374,13 +345,11 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                         worker_username=user_name, 
                         worker_reliability=worker_accuracy,
                         worker_annotation_time=worker_annotation_time,
-                        user_name=user_name,
                         log_file=log_file
                     )
                     # compute statistics of worker, pertaining to worker's interaction with cymphony
-                    (precision, recall) = compute_worker_statistics(
+                    precision = compute_worker_statistics(
                         total_matches_so_far=total_matches_so_far,
-                        total_size_tuples=total_size_tuples,
                         total_annotated_so_far=total_annotated_so_far,
                         accuracy=worker_accuracy,
                         user_name=user_name
@@ -389,12 +358,10 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
                     store_actual_simulation_statistics_per_worker(
                         worker_username=user_name, 
                         worker_precision=precision,
-                        worker_recall=recall,
                         total_matches_so_far=total_matches_so_far,
                         total_annotated_so_far=total_annotated_so_far,
-                        total_size_tuples=total_size_tuples,
-                        user_name=user_name,
-                        log_file=log_file
+                        log_file=log_file,
+                        csv_file=csv_file
                     )
                     # worker has finished interacting with cymphony
                     # print("Thread finishing for worker with username: ", user_name)
@@ -440,13 +407,11 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
             worker_username=user_name, 
             worker_reliability=worker_accuracy,
             worker_annotation_time=worker_annotation_time,
-            user_name=user_name,
             log_file=log_file
         )
         # compute statistics of worker, pertaining to worker's interaction with cymphony
-        (precision, recall) = compute_worker_statistics(
+        precision = compute_worker_statistics(
             total_matches_so_far=total_matches_so_far,
-            total_size_tuples=total_size_tuples,
             total_annotated_so_far=total_annotated_so_far,
             accuracy=worker_accuracy,
             user_name=user_name
@@ -455,30 +420,36 @@ def run_steward_pipeline(user_name: str, password: str, accuracy: float, annotat
         store_actual_simulation_statistics_per_worker(
             worker_username=user_name, 
             worker_precision=precision,
-            worker_recall=recall,
             total_matches_so_far=total_matches_so_far,
             total_annotated_so_far=total_annotated_so_far,
-            total_size_tuples=total_size_tuples,
-            user_name=user_name,
-            log_file=log_file
+            log_file=log_file,
+            csv_file=csv_file
         )
         # worker has finished interacting with cymphony
         print('Worker time duration exceeded. Returning.')
         return
     return
 
-def store_actual_simulation_parameters_per_worker(worker_username: str, worker_reliability: float, worker_annotation_time: int, user_name: str, log_file=None):
+def store_actual_simulation_parameters_per_worker(worker_username: str, worker_reliability: float, worker_annotation_time: int, log_file=None):
     """Store the actual simulation parameters for a worker in the log file"""
     if log_file is None:
         log_file = create_log()
-    log_file.write(f'Actual simulation parameters for worker {worker_username}: worker_reliability={worker_reliability}, worker_annotation_time={worker_annotation_time}, user_name={user_name}\n')
+    log_file.write(f'Actual simulation parameters for worker {worker_username}: worker_reliability={worker_reliability}, worker_annotation_time={worker_annotation_time}\n')
     return
 
-def store_actual_simulation_statistics_per_worker(worker_username: str, worker_precision: float, worker_recall: float, total_matches_so_far: int, total_annotated_so_far: int, total_size_tuples: int, user_name: str, log_file=None):
+def store_actual_simulation_statistics_per_worker(worker_username: str, worker_precision: float, total_matches_so_far: int, total_annotated_so_far: int, log_file=None, csv_file=None):
     """Store the actual simulation statistics for a worker in the log file"""
     if log_file is None:
         log_file = create_log()
-    log_file.write(f'Actual simulation statistics for worker {worker_username}: worker_precision={worker_precision}, worker_recall={worker_recall}, total_matches_so_far={total_matches_so_far}, total_annotated_so_far={total_annotated_so_far}, total_size_tuples={total_size_tuples}, user_name={user_name}\n')
+    log_file.write(f'Actual simulation statistics for worker {worker_username}: worker_precision={worker_precision}, total_matches_so_far={total_matches_so_far}, total_annotated_so_far={total_annotated_so_far}\n')
+    
+    # also append username, precision, recall, total_matches, total_annotated, total_tuples per worker in a csv file.
+    if csv_file is None:
+        csv_file = create_csv()
+    with file_lock:
+        with open(csv_file, 'a') as f:
+            f.write(f'{worker_username},{worker_precision},{total_matches_so_far},{total_annotated_so_far}\n')
+    
     return
 
 
@@ -486,6 +457,16 @@ def store_actual_simulation_statistics_per_worker(worker_username: str, worker_p
 def call_signup(s, url, data):
     method = 'POST'
     signup_response = s.post(url, data=data)
+
+    signup_response.raise_for_status()
+
+    # Check if signup was successful by examining the redirect URL
+    # If redirected back to signup URL, it's a failure.
+    if signup_response.url == url:
+        logger.error(f"Signup/Login failed. Response URL: {signup_response.url}")
+        raise Exception("Signup failed. Check username/password or Cymphony logs.")
+
+    logger.info(f"Signed up and logged in to {url} with username {data['username']} successfully.")
     return signup_response
 
 
@@ -566,21 +547,12 @@ def call_submit_annotation(s, url, label_to_annotate_with):
 
 def compute_worker_statistics(
         total_matches_so_far,
-        total_size_tuples, 
         total_annotated_so_far,
         accuracy,
         user_name
 ):
     print(f'Total matches made by worker {user_name}: {total_matches_so_far}')
-    # recall
     print(f'Total annotated by worker {user_name}: {total_annotated_so_far}')
-    print(f'Total size(tuples) of data belonging to the job: {total_size_tuples}')
-    recall: float = -1.0
-    if total_size_tuples > 0:
-        recall = float(total_annotated_so_far) / total_size_tuples
-        print(f'Fraction of total tuples annotated by this worker {user_name}: {recall}')
-    else:
-        recall = -1.0
     # precision
     precision: float = -1.0
     print(f'Intended accuracy of worker {user_name} based on supplied parameter: {accuracy}')
@@ -590,40 +562,36 @@ def compute_worker_statistics(
     else:
         precision = -1.0
         print(f'Could not compute actual accuracy of worker {user_name} because of 0 annotations.')
-    return precision, recall
+    return precision
 
-def main():
+def simulate_bulk_with_regular_workers(composite_run_id, job_category='job_3a_knlm', gold_label_column_name='gold_label'):
     # create a log
     log_file = create_log()
+    csv_file = create_csv()
 
-    # input from user
-    user_id = input('Enter the user ID: ')
-    project_id = input('Enter the project ID: ')
-    workflow_id = input('Enter the workflow ID: ')
-    run_id = input('Enter the run ID: ')
-    job_id = input('Enter the job ID: ')
-    size_data_job = int(input('Enter the size of data in job: '))
-    job_category = 'job_3a_knlm'
-    gold_label_column_name = 'gold_label'
+    user_id, project_id, workflow_id, run_id = composite_run_id.split('.')
 
     target_job_info = set_target_job_info(
-        job_id=job_id,
-        run_id=run_id,
-        workflow_id=workflow_id,
-        project_id=project_id,
-        user_id=user_id,
-        size_data_job=size_data_job,
+        run_id=int(run_id),
+        workflow_id=int(workflow_id),
+        project_id=int(project_id),
+        user_id=int(user_id),
         job_category=job_category,
         gold_label_column_name=gold_label_column_name
     )
     store_target_job_info(target_job_info, log_file)
 
-    loop_times = 2
-    workers_per_burst = 1
-    time_gaps = [1800, 0]   # 30 minutes
-    time_durations = [3600, 7200]   # 1 hour, 2 hours
-    annotation_times = [10, 10]
-    accuracies = [0.95, 0.95]
+    loop_times = 100
+    workers_per_burst = [1 for _ in range(loop_times)]
+    time_gaps = [120 for _ in range(loop_times)]
+    time_gaps[-1] = 0
+    # The usage of loop_times in the below means that we assume all workers in the same burst to have the same values for these parameters.
+    # Doesn't matter right now since we are using 1 worker per burst.
+    # Later, can be changed by using sum(workers_per_burst), and then changing the parameters in the thread call underneath.
+    time_durations = [float('inf') for _ in range(loop_times)]
+    annotation_times = [10 for _ in range(loop_times)]
+    accuracies = [random.uniform(0.8, 0.85) for _ in range(loop_times)]
+    
     simulation_parameters = set_simulation_parameters(
         loop_times=loop_times,
         workers_per_burst=workers_per_burst,
@@ -634,8 +602,14 @@ def main():
     )
     store_simulation_parameters(simulation_parameters, log_file)
 
-    simulate_stewards_on_job(simulation_parameters, target_job_info, log_file)
+    simulate_workers_on_job(simulation_parameters, target_job_info, log_file, csv_file)
+
     return
 
 if __name__ == '__main__':
-    main()
+    user_id = input('Enter the user ID: ')
+    project_id = input('Enter the project ID: ')
+    workflow_id = input('Enter the workflow ID: ')
+    run_id = input('Enter the run ID: ')
+    composite_run_id = f"{user_id}.{project_id}.{workflow_id}.{run_id}"
+    simulate_bulk_with_regular_workers(composite_run_id)
