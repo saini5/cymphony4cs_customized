@@ -43,7 +43,7 @@ def analyze_results(exp_dir):
     no_tuples = id_vs_gold_label[id_vs_gold_label['gold_label'] == 0.0]
     print(no_tuples)
     # write to csv
-    no_tuples.to_csv(exp_dir / 'results' / 'no_tuples.csv', index=False)
+    # no_tuples.to_csv(exp_dir / 'results' / 'no_tuples.csv', index=False)
     print(no_tuples.shape[0])
 
     print('========= Statistics on Worker Votes ==================')
@@ -262,6 +262,12 @@ def analyze_results(exp_dir):
     # Sort the final result by precision descending
     precision_per_worker = precision_per_worker.sort_values(by='precision', ascending=False)
 
+    stats_per_worker = annotations_per_worker.to_frame().merge(precision_per_worker, left_index=True, right_index=True, how='left').fillna(0)
+    stats_per_worker = stats_per_worker.sort_values(by='precision', ascending=False)
+    print('Stats per worker: \n', stats_per_worker)
+    # save to csv
+    stats_per_worker.to_csv(exp_dir / 'logs' / 'stats_per_worker.csv', index=True)
+
     print('\n--- Results Summary ---')
     print(f"Minimum Precision Found: {min_precision:.4f}")
     print(f"Maximum Precision Found: {max_precision:.4f}")
@@ -432,7 +438,7 @@ def analyze_results(exp_dir):
     print('Complete set of gold yes: \n', id_vs_label_vs_gold_label_yes)
     print('Count of complete set of gold yes: ', id_vs_label_vs_gold_label_yes.shape[0])
     # save to csv
-    id_vs_label_vs_gold_label_yes.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_yes.csv', index=False)
+    # id_vs_label_vs_gold_label_yes.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_yes.csv', index=False)
     
     # complete set of gold no
     id_vs_label_vs_gold_label_no = id_vs_label_vs_gold_label[id_vs_label_vs_gold_label['gold_label'] == 0.0]
@@ -440,7 +446,7 @@ def analyze_results(exp_dir):
     print('Complete set of gold no: \n', id_vs_label_vs_gold_label_no)
     print('Count of complete set of gold no: ', id_vs_label_vs_gold_label_no.shape[0])
     # save to csv
-    id_vs_label_vs_gold_label_no.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_no.csv', index=False)
+    # id_vs_label_vs_gold_label_no.to_csv(exp_dir / 'results' / 'id_vs_label_vs_gold_label_no.csv', index=False)
 
     print()
     total_input_tuples = original_data_df.shape[0]
@@ -563,5 +569,8 @@ def analyze_results(exp_dir):
     print(gold_yes_labeled_as_yes_annotations_count.shape)
 
 if __name__ == "__main__":
-    exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/dummy_exp/')
+    # exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/dummy_exp/')
+    # exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/exp4_part2_u12_p125_w124_r136_j404/')
+    # exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/exp4_part1_u12_p122_w121_r133_j395/')
+    exp_dir = Path('./fake-smartcat-exps/amt-curation/real-turkers/exp3_u12_p119_w118_r130_j386/')
     analyze_results(exp_dir)
